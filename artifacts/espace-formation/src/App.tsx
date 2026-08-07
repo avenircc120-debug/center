@@ -44,10 +44,10 @@ interface Module {
 
 const modules: Module[] = [
   {
-    id: 'communication',
-    title: 'Mieux communiquer',
+    id: 'facebook-scores',
+    title: 'Tuto Live Facebook Scores',
     eyebrow: 'Module 01 · Essentiel',
-    description: 'Les clés pour prendre la parole avec assurance, au travail comme au quotidien.',
+    description: 'Apprenez à créer et configurer une API pour diffuser les scores des matchs en direct sur vos pages Facebook et attirer une large audience.',
     lessons: 8,
     duration: '1 h 40',
     progress: 68,
@@ -55,10 +55,10 @@ const modules: Module[] = [
     icon: MessageCircle,
   },
   {
-    id: 'budget',
-    title: 'Gérer son budget',
+    id: 'onewin-promo',
+    title: 'Création Code Promo OneWin',
     eyebrow: 'Module 02 · Pratique',
-    description: 'Des habitudes simples pour mieux organiser ses revenus et ses projets.',
+    description: 'Guide complet et étape par étape pour créer, configurer et lier votre propre code promo OneWin (ou 1xBet).',
     lessons: 6,
     duration: '1 h 15',
     progress: 24,
@@ -66,10 +66,10 @@ const modules: Module[] = [
     icon: WalletCards,
   },
   {
-    id: 'projet',
-    title: 'Lancer son projet',
-    eyebrow: 'Module 03 · Inspiration',
-    description: 'Passer d’une idée à un premier plan d’action concret et réaliste.',
+    id: 'payment-groups',
+    title: 'Liaison Système de Paiement & WhatsApp / Telegram (Nouveau Module)',
+    eyebrow: 'Module 03 · Nouveau',
+    description: 'Découvrez comment lier et automatiser un système de paiement à votre groupe WhatsApp ou Telegram. Le système permet d'encaisser les tickets d'entrée des clients et de leur donner l'accès au groupe de manière totalement sécurisée et automatique, sans partage non autorisé.',
     lessons: 10,
     duration: '2 h 20',
     progress: 0,
