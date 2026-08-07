@@ -69,7 +69,7 @@ const modules: Module[] = [
     id: 'payment-groups',
     title: 'Liaison Système de Paiement & WhatsApp / Telegram (Nouveau Module)',
     eyebrow: 'Module 03 · Nouveau',
-    description: 'Découvrez comment lier et automatiser un système de paiement à votre groupe WhatsApp ou Telegram. Le système permet d'encaisser les tickets d'entrée des clients et de leur donner l'accès au groupe de manière totalement sécurisée et automatique, sans partage non autorisé.',
+    description: "Découvrez comment lier et automatiser un système de paiement à votre groupe WhatsApp ou Telegram. Le système permet d'encaisser les tickets d'entrée des clients et de leur donner l'accès au groupe de manière totalement sécurisée et automatique, sans partage non autorisé.",
     lessons: 10,
     duration: '2 h 20',
     progress: 0,
