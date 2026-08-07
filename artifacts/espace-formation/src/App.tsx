@@ -45,9 +45,9 @@ interface Module {
 const modules: Module[] = [
   {
     id: 'facebook-scores',
-    title: 'Tuto Live Facebook Scores',
+    title: "Comment trouver la visibilité avec l'automatisation des scores en direct sur la page Facebook",
     eyebrow: 'Module 01 · Essentiel',
-    description: 'Apprenez à créer et configurer une API pour diffuser les scores des matchs en direct sur vos pages Facebook et attirer une large audience.',
+    description: "Apprenez à utiliser l'attirance automatique des scores en direct sur votre page Facebook pour capter l'attention, générer un maximum de vues et obtenir une visibilité exceptionnelle auprès d'une large audience.",
     lessons: 8,
     duration: '1 h 40',
     progress: 68,
@@ -56,9 +56,9 @@ const modules: Module[] = [
   },
   {
     id: 'onewin-promo',
-    title: 'Création Code Promo OneWin',
+    title: "Comment gagner de l'argent avec un code promo",
     eyebrow: 'Module 02 · Pratique',
-    description: 'Guide complet et étape par étape pour créer, configurer et lier votre propre code promo OneWin (ou 1xBet).',
+    description: "Guide complet et stratégique pour apprendre à créer, configurer et monétiser efficacement votre propre code promo afin de générer des revenus réguliers.",
     lessons: 6,
     duration: '1 h 15',
     progress: 24,
@@ -67,9 +67,9 @@ const modules: Module[] = [
   },
   {
     id: 'payment-groups',
-    title: 'Liaison Système de Paiement & WhatsApp / Telegram (Nouveau Module)',
+    title: "Comment lier un système de paiement à son groupe WhatsApp ou Telegram",
     eyebrow: 'Module 03 · Nouveau',
-    description: "Découvrez comment lier et automatiser un système de paiement à votre groupe WhatsApp ou Telegram. Le système permet d'encaisser les tickets d'entrée des clients et de leur donner l'accès au groupe de manière totalement sécurisée et automatique, sans partage non autorisé.",
+    description: "Le module d'automatisation indispensable : découvrez comment connecter une passerelle de paiement pour encaisser les tickets d'entrée et donner l'accès à votre groupe privé de manière totalement sécurisée et automatisée.",
     lessons: 10,
     duration: '2 h 20',
     progress: 0,
