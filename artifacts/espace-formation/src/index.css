@@ -172,9 +172,7 @@
   box-shadow: 0 24px 80px rgba(46, 37, 66, .16), 0 3px 12px rgba(46, 37, 66, .05);
 }
 .app-content {
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) transparent;
+  overflow: hidden;
 }
 .noise::before {
   content: '';

@@ -165,7 +165,7 @@ function App() {
   return (
     <main className="app-shell noise min-h-[100dvh] flex justify-center">
       <div className="phone-frame relative min-h-[100dvh] w-full max-w-[470px] overflow-hidden bg-background">
-        <div className="app-content min-h-0 flex-1 overflow-y-auto pb-6">
+        <div className="app-content min-h-0 flex-1 overflow-hidden pb-6">
           <Header
             balance={coinBalance}
             onMenu={() => setIsDrawerOpen(true)}
