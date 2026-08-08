@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+declare const process: { env: Record<string, string | undefined> };
 
 const COOKIE_NAME = "formation_access";
 const TTL_SECONDS = 30 * 60;
@@ -11,8 +11,26 @@ function secret() {
   return process.env.SESSION_SECRET ?? process.env.WHATSAPP_GROUP_INVITE_URL ?? "";
 }
 
-function sign(payload: string) {
-  return createHmac("sha256", secret()).update(payload).digest("base64url");
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBytes(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return Uint8Array.from(atob(normalized), (character) => character.charCodeAt(0));
+}
+
+async function sign(payload: string) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload))));
 }
 
 function readCookie(req: RequestLike) {
@@ -26,25 +44,28 @@ function cookie(value: string, maxAge: number) {
   return `${COOKIE_NAME}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-export function setPaidCookie(res: ResponseLike) {
+export async function setPaidCookie(res: ResponseLike) {
   const exp = Math.floor(Date.now() / 1000) + TTL_SECONDS;
-  const nonce = randomUUID();
+  const randomBytes = new Uint8Array(18);
+  crypto.getRandomValues(randomBytes);
+  const nonce = bytesToBase64Url(randomBytes);
   const payload = `${exp}.${nonce}`;
-  res.setHeader("Set-Cookie", cookie(`${payload}.${sign(payload)}`, TTL_SECONDS));
+  res.setHeader("Set-Cookie", cookie(`${payload}.${await sign(payload)}`, TTL_SECONDS));
 }
 
 export function clearPaidCookie(res: ResponseLike) {
   res.setHeader("Set-Cookie", cookie("", 0));
 }
 
-export function hasValidPayment(req: RequestLike) {
+export async function hasValidPayment(req: RequestLike) {
   const value = readCookie(req);
   if (!value || !secret()) return null;
   const [expText, nonce, signature] = value.split(".");
   const exp = Number(expText);
   if (!expText || !nonce || !signature || !Number.isFinite(exp) || exp <= Math.floor(Date.now() / 1000)) return null;
   const payload = `${expText}.${nonce}`;
-  if (sign(payload) !== signature || usedNonces.has(nonce)) return null;
+  const expected = await sign(payload);
+  if (expected !== signature || usedNonces.has(nonce)) return null;
   return nonce;
 }
 
