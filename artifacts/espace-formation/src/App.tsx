@@ -68,6 +68,7 @@ function App() {
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [completed, setCompleted] = useState<string[]>([]);
   const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -107,7 +108,7 @@ function App() {
     <main className="app-shell">
       <div className="phone-frame">
         <header className="topbar">
-          <button type="button" className="icon-button" data-testid="button-open-menu" aria-label="Ouvrir le menu" onClick={() => showToast("Ton espace est déjà prêt.", "info")}><Menu size={20} /></button>
+          <button type="button" className="icon-button" data-testid="button-open-menu" aria-label="Ouvrir le menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><Menu size={20} /></button>
           <div className="brand-lockup"><span className="brand-mark"><Sparkles size={14} /></span><span>Espace <b>formation</b></span></div>
           <div className="user-bubble" title={user.email ?? undefined}>{user.photoURL ? <img src={user.photoURL} alt="" /> : <UserRound size={17} />}</div>
         </header>
@@ -120,8 +121,6 @@ function App() {
           {activeNav === "recompenses" && <RewardsView progress={progress} onToast={showToast} />}
         </div>
 
-        <button type="button" className="logout-button" data-testid="button-logout" onClick={handleLogout}><LogOut size={14} /> Se déconnecter</button>
-
         <nav className="bottom-nav" aria-label="Navigation principale">
           {([
             ["accueil", "Accueil", Sparkles],
@@ -131,6 +130,31 @@ function App() {
             <button type="button" key={id} data-testid={`nav-${id}`} className={activeNav === id ? "active" : ""} onClick={() => setActiveNav(id)}><Icon size={18} /><span>{label}</span></button>
           ))}
         </nav>
+
+        {menuOpen && (
+          <div className="menu-layer" role="dialog" aria-label="Menu du compte">
+            <button type="button" className="menu-scrim" aria-label="Fermer le menu" onClick={() => setMenuOpen(false)} />
+            <aside className="menu-panel">
+              <div className="menu-panel-header">
+                <div>
+                  <p className="eyebrow">TON ESPACE</p>
+                  <h2>Menu principal</h2>
+                </div>
+                <button type="button" className="menu-close" aria-label="Fermer le menu" onClick={() => setMenuOpen(false)}><X size={17} /></button>
+              </div>
+              <div className="menu-profile">
+                <span className="menu-profile-avatar"><UserRound size={18} /></span>
+                <span><b>{user.displayName}</b><small>{user.email}</small></span>
+              </div>
+              <div className="menu-actions">
+                <button type="button" onClick={() => { setMenuOpen(false); showToast("Ton profil est à jour.", "info"); }}><UserRound size={17} /><span>Mon profil</span><ChevronRight size={15} /></button>
+                <button type="button" onClick={() => { setMenuOpen(false); showToast("La communauté est prête à t’accueillir.", "info"); }}><MessageCircle size={17} /><span>Communauté</span><ChevronRight size={15} /></button>
+                <button type="button" onClick={() => { setMenuOpen(false); setActiveNav("recompenses"); }}><Trophy size={17} /><span>Récompenses</span><ChevronRight size={15} /></button>
+                <button type="button" className="menu-logout" data-testid="button-logout" onClick={() => { setMenuOpen(false); handleLogout(); }}><LogOut size={17} /><span>Se déconnecter</span><ChevronRight size={15} /></button>
+              </div>
+            </aside>
+          </div>
+        )}
         {selectedModule && <ModuleModal module={selectedModule} onClose={() => setSelectedModule(null)} onComplete={completeModule} />}
         {toast && <div className={`toast toast-${toast.kind}`} role="status" data-testid="status-toast"><span>{toast.message}</span><button type="button" aria-label="Fermer le message" data-testid="button-close-toast" onClick={() => setToast(null)}><X size={15} /></button></div>}
       </div>
