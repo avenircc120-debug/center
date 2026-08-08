@@ -18,8 +18,9 @@ import {
   X,
 } from "lucide-react";
 import {
+  getRedirectResult,
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   type User,
 } from "firebase/auth";
@@ -82,10 +83,26 @@ function App() {
       setAuthLoading(false);
       return;
     }
-    return onAuthStateChanged(auth, (nextUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
       setAuthLoading(false);
     });
+    void getRedirectResult(auth).catch((error: unknown) => {
+      setAuthLoading(false);
+      const code = error instanceof Error && "code" in error ? String(error.code) : "";
+      if (code === "auth/unauthorized-domain") {
+        setToast({
+          message: "Ce domaine doit être ajouté aux domaines autorisés Firebase.",
+          kind: "warning",
+        });
+      } else if (code !== "auth/popup-closed-by-user") {
+        setToast({
+          message: "Google n’a pas pu terminer la connexion. Vérifie que Google est activé dans Firebase Authentication.",
+          kind: "warning",
+        });
+      }
+    });
+    return unsubscribe;
   }, []);
 
   useEffect(() => {
@@ -110,12 +127,14 @@ function App() {
     }
     setIsSigningIn(true);
     try {
-      await signInWithPopup(auth, createGoogleProvider());
+      await signInWithRedirect(auth, createGoogleProvider());
     } catch (error) {
       const code = error instanceof Error && "code" in error ? String(error.code) : "";
-      if (code !== "auth/popup-closed-by-user") {
-        showToast("Impossible d’ouvrir la connexion Google. Réessaie dans un instant.", "warning");
-      }
+      const message =
+        code === "auth/unauthorized-domain"
+          ? "Ajoute espace-formation.vercel.app dans les domaines autorisés Firebase."
+          : "Impossible d’ouvrir la connexion Google. Vérifie que Google est activé dans Firebase Authentication.";
+      showToast(message, "warning");
     } finally {
       setIsSigningIn(false);
     }
