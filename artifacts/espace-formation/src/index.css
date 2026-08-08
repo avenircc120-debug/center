@@ -243,3 +243,51 @@ button:disabled { cursor: wait; opacity: .7; }
   .reward-card { padding: 12px; }
   .steps-card { padding: 12px; }
 }
+
+/* ============================================================
+   Fit-to-viewport : toute l'interface tient dans 100vh,
+   aucun défilement vertical, la barre du bas reste ancrée.
+   ============================================================ */
+html, body, #root { height: 100%; max-height: 100%; overflow: hidden; overscroll-behavior: none; }
+
+.app-shell, .login-shell { height: 100vh; height: 100dvh; min-height: 0; max-height: 100dvh; overflow: hidden; }
+.phone-frame { height: 100vh; height: 100dvh; min-height: 0; max-height: 100dvh; overflow: hidden; }
+
+/* Le contenu ne défile plus : il se compresse. */
+.app-content { flex: 1 1 auto; min-height: 0; overflow: hidden; padding-bottom: clamp(4px, 1vh, 10px); }
+.view-stack { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: clamp(4px, 1.2vh, 16px); padding-top: clamp(0px, .6vh, 6px); overflow: hidden; }
+.view-stack > * { flex: 0 0 auto; min-height: 0; }
+
+/* Barre de navigation : toujours visible, jamais poussée hors écran. */
+.bottom-nav { order: 3; flex: 0 0 auto; height: calc(clamp(48px, 8vh, 64px) + env(safe-area-inset-bottom)); min-height: 0; padding-top: clamp(4px, 1vh, 8px); padding-bottom: calc(clamp(4px, 1vh, 8px) + env(safe-area-inset-bottom)); }
+.bottom-nav button { gap: clamp(2px, .5vh, 4px); font-size: clamp(8px, 1.3vh, 9px); }
+
+/* Typographie et espacements adaptatifs pour absorber les petites hauteurs. */
+.topbar { padding-top: clamp(6px, 1.6vh, 18px); padding-bottom: clamp(4px, 1.2vh, 12px); }
+.welcome-block h1 { margin-top: clamp(2px, .8vh, 7px); font-size: clamp(24px, 5.4vh, 46px); }
+.welcome-block > p:not(.eyebrow) { margin-top: clamp(4px, 1.2vh, 12px); font-size: clamp(10px, 1.5vh, 12px); line-height: 1.45; }
+.email-chip { margin-top: clamp(4px, 1vh, 11px); }
+.progress-card { padding: clamp(9px, 1.6vh, 17px); }
+.progress-card h2, .section-heading h2, .steps-card h2 { font-size: clamp(14px, 2.2vh, 20px); }
+.progress-card > div:first-child p:last-child { margin-top: clamp(3px, .8vh, 7px); font-size: clamp(9px, 1.3vh, 10px); }
+.progress-track { margin-top: clamp(5px, 1.2vh, 11px); }
+
+.module-scroller { flex: 1 1 auto; min-height: 0; margin-top: clamp(5px, 1.2vh, 12px); padding-bottom: clamp(5px, 1.2vh, 12px); overflow-y: hidden; }
+.module-card { min-height: 0; height: 100%; padding: clamp(9px, 1.5vh, 16px); }
+.module-content { padding: clamp(8px, 2vh, 22px) 0 clamp(6px, 1.2vh, 13px); }
+.module-content h3 { font-size: clamp(13px, 2.2vh, 19px); }
+.community-card { padding: clamp(8px, 1.4vh, 15px); }
+.community-icon { width: clamp(32px, 5.4vh, 43px); height: clamp(32px, 5.4vh, 43px); }
+
+/* La section « formations » remplit l'espace restant sans défiler. */
+.section-block { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+.formations-view .formation-list { flex: 1 1 auto; min-height: 0; gap: clamp(5px, 1.2vh, 14px); overflow: hidden; }
+.formations-view .module-card, .module-card.module-full { flex: 1 1 0; min-height: 0; height: auto; }
+.page-heading h1 { font-size: clamp(18px, 3.2vh, 25px); }
+
+/* Vue Récompenses : même contrainte plein écran. */
+.reward-card { padding: clamp(10px, 1.8vh, 18px); }
+.steps-card { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; padding: clamp(10px, 1.8vh, 18px); overflow: hidden; }
+.reward-steps { flex: 1 1 auto; min-height: 0; gap: clamp(4px, 1vh, 12px); overflow: hidden; }
+.reward-step i { width: clamp(26px, 4.4vh, 31px); height: clamp(26px, 4.4vh, 31px); }
+.reward-icon { width: clamp(32px, 5.4vh, 40px); height: clamp(32px, 5.4vh, 40px); }
