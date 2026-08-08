@@ -12,8 +12,8 @@ const firebaseConfig: FirebaseOptions = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? "center-d0f39",
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? "center-d0f39.firebasestorage.app",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? "873961818551",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? "1:873961818551:web:b63e783ec5506a1ab3c032",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? "G-J692DS4NPP",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? "1:873961818551:web:576f8bb9aaf51d99b3c032",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ?? "G-Z6XS108CKR",
 };
 
 const hasFirebaseConfig = Object.values(firebaseConfig).every(Boolean);
