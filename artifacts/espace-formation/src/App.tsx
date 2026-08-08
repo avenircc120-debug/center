@@ -18,8 +18,11 @@ import {
   X,
 } from "lucide-react";
 import {
+  browserLocalPersistence,
   getRedirectResult,
   onAuthStateChanged,
+  setPersistence,
+  signInWithPopup,
   signInWithRedirect,
   signOut,
   type User,
@@ -83,26 +86,32 @@ function App() {
       setAuthLoading(false);
       return;
     }
+    let mounted = true;
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      if (!mounted) return;
       setUser(nextUser);
       setAuthLoading(false);
     });
-    void getRedirectResult(auth).catch((error: unknown) => {
-      setAuthLoading(false);
-      const code = error instanceof Error && "code" in error ? String(error.code) : "";
-      if (code === "auth/unauthorized-domain") {
-        setToast({
-          message: "Ce domaine doit être ajouté aux domaines autorisés Firebase.",
-          kind: "warning",
-        });
-      } else if (code !== "auth/popup-closed-by-user") {
-        setToast({
-          message: "Google n’a pas pu terminer la connexion. Vérifie que Google est activé dans Firebase Authentication.",
-          kind: "warning",
-        });
-      }
-    });
-    return unsubscribe;
+    void getRedirectResult(auth)
+      .catch((error: unknown) => {
+        if (!mounted) return;
+        const code = getAuthErrorCode(error);
+        if (code === "auth/unauthorized-domain") {
+          setToast({
+            message: "Ce domaine doit être ajouté aux domaines autorisés Firebase.",
+            kind: "warning",
+          });
+        } else if (code !== "auth/popup-closed-by-user") {
+          setToast({
+            message: "Google n’a pas pu terminer la connexion. Vérifie que Google est activé dans Firebase Authentication.",
+            kind: "warning",
+          });
+        }
+      });
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -127,14 +136,18 @@ function App() {
     }
     setIsSigningIn(true);
     try {
-      await signInWithRedirect(auth, createGoogleProvider());
+      const persistenceReady = setPersistence(auth, browserLocalPersistence);
+      await signInWithPopup(auth, createGoogleProvider());
+      await persistenceReady;
     } catch (error) {
-      const code = error instanceof Error && "code" in error ? String(error.code) : "";
-      const message =
-        code === "auth/unauthorized-domain"
-          ? "Ajoute espace-formation.vercel.app dans les domaines autorisés Firebase."
-          : "Impossible d’ouvrir la connexion Google. Vérifie que Google est activé dans Firebase Authentication.";
-      showToast(message, "warning");
+      const code = getAuthErrorCode(error);
+      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+        await signInWithRedirect(auth, createGoogleProvider());
+        return;
+      }
+      if (code !== "auth/popup-closed-by-user") {
+        showToast(getGoogleAuthErrorMessage(code), "warning");
+      }
     } finally {
       setIsSigningIn(false);
     }
@@ -217,6 +230,23 @@ function LoginScreen({ onLogin, isSigningIn, hasConfig }: { onLogin: () => void;
       <p className="login-footer">Un petit pas aujourd’hui, une vraie différence demain.</p>
     </main>
   );
+}
+
+function getAuthErrorCode(error: unknown) {
+  return error instanceof Error && "code" in error ? String(error.code) : "";
+}
+
+function getGoogleAuthErrorMessage(code: string) {
+  if (code === "auth/unauthorized-domain") {
+    return "Ajoute espace-formation.vercel.app dans les domaines autorisés Firebase.";
+  }
+  if (code === "auth/account-exists-with-different-credential") {
+    return "Cet e-mail existe déjà avec une autre méthode de connexion.";
+  }
+  if (code === "auth/network-request-failed") {
+    return "La connexion réseau a échoué. Vérifie ta connexion puis réessaie.";
+  }
+  return "Impossible d’ouvrir la connexion Google. Vérifie que Google est activé dans Firebase Authentication.";
 }
 
 function GoogleIcon() {
