@@ -4,7 +4,6 @@ import {
   BookOpen,
   Check,
   ChevronRight,
-  CircleHelp,
   Clock3,
   Coins,
   LogOut,
@@ -14,19 +13,8 @@ import {
   ShieldCheck,
   Sparkles,
   Trophy,
-  UserRound,
   X,
 } from "lucide-react";
-import {
-  browserLocalPersistence,
-  getRedirectResult,
-  onAuthStateChanged,
-  setPersistence,
-  signInWithRedirect,
-  signOut,
-  type User,
-} from "firebase/auth";
-import { auth, createGoogleProvider, hasFirebaseConfig } from "@/lib/firebase";
 
 type ToastKind = "success" | "warning" | "info";
 type NavItem = "accueil" | "formations" | "recompenses";
@@ -72,46 +60,12 @@ const modules: Module[] = [
 ];
 
 function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [user] = useState({ displayName: "Apprenant·e", email: "" });
+  const [authLoading] = useState(false);
   const [activeNav, setActiveNav] = useState<NavItem>("accueil");
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
   const [completed, setCompleted] = useState<string[]>([]);
   const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null);
-
-  useEffect(() => {
-    if (!auth) {
-      setAuthLoading(false);
-      return;
-    }
-    let mounted = true;
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
-      if (!mounted) return;
-      setUser(nextUser);
-      setAuthLoading(false);
-    });
-    void getRedirectResult(auth)
-      .catch((error: unknown) => {
-        if (!mounted) return;
-        const code = getAuthErrorCode(error);
-        if (code === "auth/unauthorized-domain") {
-          setToast({
-            message: "Ce domaine doit être ajouté aux domaines autorisés Firebase.",
-            kind: "warning",
-          });
-        } else if (code !== "auth/popup-closed-by-user") {
-          setToast({
-            message: "Google n’a pas pu terminer la connexion. Vérifie que Google est activé dans Firebase Authentication.",
-            kind: "warning",
-          });
-        }
-      });
-    return () => {
-      mounted = false;
-      unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -128,28 +82,7 @@ function App() {
 
   const showToast = (message: string, kind: ToastKind = "success") => setToast({ message, kind });
 
-  const handleGoogleLogin = async () => {
-    if (!auth || !hasFirebaseConfig) {
-      showToast("La configuration Firebase doit encore être ajoutée à l’application.", "warning");
-      return;
-    }
-    setIsSigningIn(true);
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-      // Redirect is more reliable than a popup inside Vercel previews and on mobile.
-      await signInWithRedirect(auth, createGoogleProvider());
-    } catch (error) {
-      const code = getAuthErrorCode(error);
-      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
-        showToast(getGoogleAuthErrorMessage(code), "warning");
-      }
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    if (auth) await signOut(auth);
+  const handleLogout = () => {
     showToast("Tu es déconnecté·e.", "info");
   };
 
@@ -168,7 +101,7 @@ function App() {
   }
 
   if (!user) {
-    return <LoginScreen onLogin={handleGoogleLogin} isSigningIn={isSigningIn} hasConfig={hasFirebaseConfig} />;
+    return null;
   }
 
   return (
@@ -206,47 +139,7 @@ function App() {
   );
 }
 
-function LoginScreen({ onLogin, isSigningIn, hasConfig }: { onLogin: () => void; isSigningIn: boolean; hasConfig: boolean }) {
-  return (
-    <main className="login-shell">
-      <section className="login-card">
-        <div className="login-orbit"><span className="brand-mark"><Sparkles size={21} /></span><span className="orbit-dot" /></div>
-        <p className="eyebrow">ESPACE FORMATION</p>
-        <h1>Apprends. <em>Progresse.</em><br />Construis la suite.</h1>
-        <p className="login-copy">Retrouve tes formations, ton parcours et tes récompenses dans un espace pensé pour avancer à ton rythme.</p>
-        <button type="button" className="google-button" data-testid="button-login-google" onClick={onLogin} disabled={isSigningIn}>
-          <GoogleIcon />
-          <span>{isSigningIn ? "Ouverture de Google..." : "Continuer avec Google"}</span>
-          {!isSigningIn && <ArrowRight size={17} />}
-        </button>
-        {!hasConfig && <p className="config-note"><CircleHelp size={14} /> Configuration Firebase requise pour activer la fenêtre Google.</p>}
-        <div className="login-trust"><ShieldCheck size={15} /><span>Connexion sécurisée avec ton compte Google. Aucun mot de passe à retenir.</span></div>
-      </section>
-      <p className="login-footer">Un petit pas aujourd’hui, une vraie différence demain.</p>
-    </main>
-  );
-}
 
-function getAuthErrorCode(error: unknown) {
-  return error instanceof Error && "code" in error ? String(error.code) : "";
-}
-
-function getGoogleAuthErrorMessage(code: string) {
-  if (code === "auth/unauthorized-domain") {
-    return "Ajoute espace-formation.vercel.app dans les domaines autorisés Firebase.";
-  }
-  if (code === "auth/account-exists-with-different-credential") {
-    return "Cet e-mail existe déjà avec une autre méthode de connexion.";
-  }
-  if (code === "auth/network-request-failed") {
-    return "La connexion réseau a échoué. Vérifie ta connexion puis réessaie.";
-  }
-  return "Impossible d’ouvrir la connexion Google. Vérifie que Google est activé dans Firebase Authentication.";
-}
-
-function GoogleIcon() {
-  return <svg aria-hidden="true" className="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.35 12.27c0-.72-.06-1.42-.18-2.09H12v3.96h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.26Z" /><path fill="#34A853" d="M12 21.6c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.6Z" /><path fill="#FBBC05" d="M6.54 13.68a5.86 5.86 0 0 1 0-3.36V7.79H3.3a9.74 9.74 0 0 0 0 8.42l3.24-2.53Z" /><path fill="#EA4335" d="M12 6.29c1.43 0 2.71.49 3.72 1.45l2.79-2.78C16.84 3.32 14.63 2.4 12 2.4a9.74 9.74 0 0 0-8.7 5.39l3.24 2.53C7.31 8.01 9.46 6.29 12 6.29Z" /></svg>;
-}
 
 function HomeView({ user, firstName, progress, modules: visibleModules, onModule, onAllModules }: { user: User; firstName: string; progress: number; modules: Module[]; onModule: (module: Module) => void; onAllModules: () => void }) {
   return <div className="view-stack">
