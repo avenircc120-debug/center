@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trophy,
+  UserRound,
   X,
 } from "lucide-react";
 
