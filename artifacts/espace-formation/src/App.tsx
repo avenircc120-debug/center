@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 type ToastKind = "success" | "warning" | "info";
+type AppUser = { displayName: string; email: string; photoURL?: string | null };
 type NavItem = "accueil" | "formations" | "recompenses";
 
 interface Module {
@@ -60,7 +61,7 @@ const modules: Module[] = [
 ];
 
 function App() {
-  const [user] = useState({ displayName: "Apprenant·e", email: "" });
+  const [user] = useState<AppUser>({ displayName: "Apprenant·e", email: "invité@oncenter.app", photoURL: null });
   const [authLoading] = useState(false);
   const [activeNav, setActiveNav] = useState<NavItem>("accueil");
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
@@ -100,9 +101,6 @@ function App() {
     return <div className="auth-loading"><div className="brand-mark"><Sparkles size={18} /></div><span>Préparation de ton espace...</span></div>;
   }
 
-  if (!user) {
-    return null;
-  }
 
   return (
     <main className="app-shell">
@@ -141,7 +139,7 @@ function App() {
 
 
 
-function HomeView({ user, firstName, progress, modules: visibleModules, onModule, onAllModules }: { user: User; firstName: string; progress: number; modules: Module[]; onModule: (module: Module) => void; onAllModules: () => void }) {
+function HomeView({ user, firstName, progress, modules: visibleModules, onModule, onAllModules }: { user: AppUser; firstName: string; progress: number; modules: Module[]; onModule: (module: Module) => void; onAllModules: () => void }) {
   return <div className="view-stack">
     <section className="welcome-block animate-rise"><p className="eyebrow">TON ESPACE, TON RYTHME</p><h1>Bonjour,<br /><em>{firstName}.</em></h1><p>Heureux de te retrouver. Prêt·e à faire avancer ton projet ?</p><span className="email-chip">{user.email}</span></section>
     <section className="progress-card animate-rise"><div><p className="eyebrow">TON PARCOURS</p><h2>Tu avances bien.</h2><p>Chaque leçon te rapproche de ton prochain objectif.</p></div><strong>{progress}%</strong><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></section>
