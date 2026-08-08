@@ -298,3 +298,79 @@ html, body, #root { height: 100%; max-height: 100%; overflow: hidden; overscroll
 .coin-balance-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: clamp(4px, 1vh, 10px); font-size: 11px; opacity: .9; }
 .coin-balance-row span { display: inline-flex; align-items: center; gap: 5px; }
 .coin-balance-row b { font-size: 12px; font-weight: 800; }
+
+
+/* ---------- Connexion Google (Firebase) ---------- */
+.login-frame {
+  justify-content: center;
+}
+
+.login-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: clamp(0.5rem, 1.4vh, 0.9rem);
+  padding: clamp(1rem, 3vh, 1.8rem) clamp(1rem, 4vw, 1.6rem);
+  overflow: hidden;
+}
+
+.login-mark {
+  width: clamp(2.2rem, 6vh, 2.9rem);
+  height: clamp(2.2rem, 6vh, 2.9rem);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-view h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4.6vh, 2.1rem);
+  line-height: 1.1;
+}
+
+.login-lead {
+  margin: 0;
+  font-size: clamp(0.8rem, 1.9vh, 0.95rem);
+  color: var(--muted-foreground, #6b7280);
+}
+
+.google-button {
+  width: 100%;
+  margin-top: clamp(0.4rem, 1.4vh, 0.9rem);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: clamp(0.65rem, 1.8vh, 0.9rem) 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: #1f2937;
+  font-size: clamp(0.85rem, 2vh, 0.98rem);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.google-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}
+
+.google-button:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.login-note {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: clamp(0.68rem, 1.6vh, 0.78rem);
+  color: var(--muted-foreground, #6b7280);
+}
