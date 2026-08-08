@@ -1,10 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseOptions } from "firebase/app";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  type Auth,
-} from "firebase/auth";
-import { getAnalytics, type Analytics } from "firebase/analytics";
+import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
+import { getAnalytics, isSupported, type Analytics } from "firebase/analytics";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? "AIzaSyAkXSsTCzvY2eWUi0ldsiBg-Q2WK9PIHh8",
@@ -24,7 +20,11 @@ if (hasFirebaseConfig) {
   const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   auth = getAuth(app);
   if (typeof window !== "undefined") {
-    analytics = getAnalytics(app);
+    void isSupported().then((supported) => {
+      if (supported) analytics = getAnalytics(app);
+    }).catch(() => {
+      // Analytics is optional and must never prevent authentication from loading.
+    });
   }
 }
 

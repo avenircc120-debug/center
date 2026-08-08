@@ -22,7 +22,6 @@ import {
   getRedirectResult,
   onAuthStateChanged,
   setPersistence,
-  signInWithPopup,
   signInWithRedirect,
   signOut,
   type User,
@@ -136,16 +135,12 @@ function App() {
     }
     setIsSigningIn(true);
     try {
-      const persistenceReady = setPersistence(auth, browserLocalPersistence);
-      await signInWithPopup(auth, createGoogleProvider());
-      await persistenceReady;
+      await setPersistence(auth, browserLocalPersistence);
+      // Redirect is more reliable than a popup inside Vercel previews and on mobile.
+      await signInWithRedirect(auth, createGoogleProvider());
     } catch (error) {
       const code = getAuthErrorCode(error);
-      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
-        await signInWithRedirect(auth, createGoogleProvider());
-        return;
-      }
-      if (code !== "auth/popup-closed-by-user") {
+      if (code !== "auth/popup-closed-by-user" && code !== "auth/cancelled-popup-request") {
         showToast(getGoogleAuthErrorMessage(code), "warning");
       }
     } finally {
