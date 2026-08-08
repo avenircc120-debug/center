@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   Check,
@@ -8,432 +7,231 @@ import {
   CircleHelp,
   Clock3,
   Coins,
-  Download,
-  Headphones,
-  House,
-  LockKeyhole,
+  LogOut,
   Menu,
   MessageCircle,
-  MoreHorizontal,
   Play,
-  Send,
-  Settings,
   ShieldCheck,
   Sparkles,
   Trophy,
   UserRound,
-  WalletCards,
   X,
-} from 'lucide-react';
+} from "lucide-react";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  type User,
+} from "firebase/auth";
+import { auth, createGoogleProvider, hasFirebaseConfig } from "@/lib/firebase";
 
-type NavItem = 'accueil' | 'formations' | 'recompenses';
-type ToastKind = 'success' | 'info' | 'warning';
+type ToastKind = "success" | "warning" | "info";
+type NavItem = "accueil" | "formations" | "recompenses";
 
 interface Module {
   id: string;
   title: string;
-  eyebrow: string;
   description: string;
   lessons: number;
   duration: string;
   progress: number;
-  color: 'coral' | 'teal' | 'violet';
-  icon: typeof BookOpen;
-  completed?: boolean;
+  tone: "coral" | "teal" | "violet";
 }
 
 const modules: Module[] = [
   {
-    id: 'facebook-scores',
-    title: "Comment trouver la visibilité avec l'automatisation des scores en direct sur la page Facebook",
-    eyebrow: 'Module 01 · Essentiel',
-    description: "Apprenez à utiliser l'attirance automatique des scores en direct sur votre page Facebook pour capter l'attention, générer un maximum de vues et obtenir une visibilité exceptionnelle auprès d'une large audience.",
+    id: "facebook-scores",
+    title: "Booster sa visibilité avec les scores en direct",
+    description: "Apprends à capter l’attention, générer des vues et créer une audience fidèle avec des contenus qui vivent en temps réel.",
     lessons: 8,
-    duration: '1 h 40',
+    duration: "1 h 40",
     progress: 68,
-    color: 'coral',
-    icon: MessageCircle,
+    tone: "coral",
   },
   {
-    id: 'onewin-promo',
-    title: "Comment gagner de l'argent avec un code promo",
-    eyebrow: 'Module 02 · Pratique',
-    description: "Guide complet et stratégique pour apprendre à créer, configurer et monétiser efficacement votre propre code promo afin de générer des revenus réguliers.",
+    id: "onewin-promo",
+    title: "Gagner de l’argent avec un code promo",
+    description: "Une méthode pratique pour créer, configurer et monétiser ton propre code promo.",
     lessons: 6,
-    duration: '1 h 15',
+    duration: "1 h 15",
     progress: 24,
-    color: 'teal',
-    icon: WalletCards,
+    tone: "teal",
   },
   {
-    id: 'payment-groups',
-    title: "Comment lier un système de paiement à son groupe WhatsApp ou Telegram",
-    eyebrow: 'Module 03 · Nouveau',
-    description: "Le module d'automatisation indispensable : découvrez comment connecter une passerelle de paiement pour encaisser les tickets d'entrée et donner l'accès à votre groupe privé de manière totalement sécurisée et automatisée.",
+    id: "payment-groups",
+    title: "Relier un paiement à son groupe privé",
+    description: "Découvre comment automatiser les paiements et les accès à une communauté WhatsApp ou Telegram.",
     lessons: 10,
-    duration: '2 h 20',
+    duration: "2 h 20",
     progress: 0,
-    color: 'violet',
-    icon: Sparkles,
+    tone: "violet",
   },
-];
-
-const navItems: Array<{ id: NavItem; label: string; icon: typeof House }> = [
-  { id: 'accueil', label: 'Accueil', icon: House },
-  { id: 'formations', label: 'Formations', icon: BookOpen },
-  { id: 'recompenses', label: 'Récompenses', icon: Trophy },
 ];
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeNav, setActiveNav] = useState<NavItem>('accueil');
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isCoinModalOpen, setIsCoinModalOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [activeNav, setActiveNav] = useState<NavItem>("accueil");
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
-  const [name, setName] = useState('');
-  const [accessState, setAccessState] = useState<'ready' | 'checking' | 'active'>('ready');
-  const [coinBalance, setCoinBalance] = useState(347);
+  const [completed, setCompleted] = useState<string[]>([]);
   const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null);
-  const [completedModules, setCompletedModules] = useState<string[]>([]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setIsLoading(false), 540);
-    return () => window.clearTimeout(timer);
+    if (!auth) {
+      setAuthLoading(false);
+      return;
+    }
+    return onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
+      setAuthLoading(false);
+    });
   }, []);
 
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 3300);
+    const timer = window.setTimeout(() => setToast(null), 3600);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/access/status', { credentials: 'include' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data: { paid?: boolean } | null) => {
-        if (!cancelled && data?.paid) setAccessState('active');
-      })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
-  }, []);
-
-  const firstName = name.trim().split(' ')[0] || 'apprenant·e';
-  const currentModules = useMemo(
-    () => modules.map((module) => (completedModules.includes(module.id) ? { ...module, progress: 100, completed: true } : module)),
-    [completedModules],
+  const visibleModules = useMemo(
+    () => modules.map((module) => completed.includes(module.id) ? { ...module, progress: 100 } : module),
+    [completed],
   );
-  const totalProgress = Math.round(currentModules.reduce((sum, module) => sum + module.progress, 0) / currentModules.length);
+  const progress = Math.round(visibleModules.reduce((total, module) => total + module.progress, 0) / visibleModules.length);
+  const firstName = user?.displayName?.split(" ")[0] || "apprenant·e";
 
-  const showToast = (message: string, kind: ToastKind = 'success') => setToast({ message, kind });
+  const showToast = (message: string, kind: ToastKind = "success") => setToast({ message, kind });
 
-  const handleAccess = async () => {
-    if (name.trim().length < 2) {
-      showToast('Écris ton prénom pour continuer.', 'warning');
+  const handleGoogleLogin = async () => {
+    if (!auth || !hasFirebaseConfig) {
+      showToast("La configuration Firebase doit encore être ajoutée à l’application.", "warning");
       return;
     }
-    setAccessState('checking');
+    setIsSigningIn(true);
     try {
-      const response = await fetch('/api/access/simulate-payment', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      });
-      const data = await response.json().catch(() => ({})) as { message?: string; paid?: boolean };
-      if (!response.ok || !data.paid) throw new Error(data.message ?? 'La simulation du paiement a échoué.');
-      setAccessState('active');
-      setCoinBalance((value) => value + 25);
-      showToast('Paiement simulé confirmé. Ton accès est ouvert.', 'success');
+      await signInWithPopup(auth, createGoogleProvider());
     } catch (error) {
-      setAccessState('ready');
-      showToast(error instanceof Error ? error.message : 'Impossible de confirmer le paiement.', 'warning');
+      const code = error instanceof Error && "code" in error ? String(error.code) : "";
+      if (code !== "auth/popup-closed-by-user") {
+        showToast("Impossible d’ouvrir la connexion Google. Réessaie dans un instant.", "warning");
+      }
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
-  const handleComplete = (module: Module) => {
-    if (!completedModules.includes(module.id)) {
-      setCompletedModules((values) => [...values, module.id]);
-      setCoinBalance((value) => value + 40);
-      showToast('Module terminé. +40 pièces ajoutées !', 'success');
+  const handleLogout = async () => {
+    if (auth) await signOut(auth);
+    showToast("Tu es déconnecté·e.", "info");
+  };
+
+  const completeModule = (module: Module) => {
+    if (!completed.includes(module.id)) {
+      setCompleted((items) => [...items, module.id]);
+      showToast("Module terminé. Bravo pour ta progression !");
     } else {
-      showToast('Tu peux revoir ce module quand tu veux.', 'info');
+      showToast("Tu peux revoir ce module quand tu veux.", "info");
     }
     setSelectedModule(null);
   };
 
-  const changeNav = (item: NavItem) => {
-    setActiveNav(item);
-    setIsDrawerOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  if (authLoading) {
+    return <div className="auth-loading"><div className="brand-mark"><Sparkles size={18} /></div><span>Préparation de ton espace...</span></div>;
+  }
 
-  if (isLoading) {
-    return (
-      <main className="app-shell noise min-h-[100dvh] flex justify-center">
-        <div className="phone-frame min-h-[100dvh] w-full max-w-[470px] bg-background">
-          <div className="space-y-5 p-6 pt-12">
-            <div className="flex justify-between"><div className="skeleton h-10 w-10 rounded-2xl" /><div className="skeleton h-10 w-28 rounded-full" /></div>
-            <div className="skeleton h-8 w-64 rounded-xl" />
-            <div className="skeleton h-36 w-full rounded-[2rem]" />
-            <div className="skeleton h-32 w-full rounded-[1.75rem]" />
-            <div className="skeleton h-48 w-full rounded-[1.75rem]" />
-          </div>
-        </div>
-      </main>
-    );
+  if (!user) {
+    return <LoginScreen onLogin={handleGoogleLogin} isSigningIn={isSigningIn} hasConfig={hasFirebaseConfig} />;
   }
 
   return (
-    <main className="app-shell noise min-h-[100dvh] flex justify-center">
-      <div className="phone-frame relative min-h-[100dvh] w-full max-w-[470px] overflow-hidden bg-background">
-        <div className="app-content min-h-0 flex-1 pb-6">
-          <Header
-            balance={coinBalance}
-            onMenu={() => setIsDrawerOpen(true)}
-            onCoins={() => setIsCoinModalOpen(true)}
-          />
-          {activeNav === 'accueil' && (
-            <HomeView
-              firstName={firstName}
-              name={name}
-              accessState={accessState}
-              progress={totalProgress}
-              modules={currentModules}
-              onNameChange={setName}
-              onAccess={handleAccess}
-              onModule={(module) => setSelectedModule(module)}
-              onAllModules={() => changeNav('formations')}
-              onCoins={() => setIsCoinModalOpen(true)}
-            />
+    <main className="app-shell">
+      <div className="phone-frame">
+        <header className="topbar">
+          <button type="button" className="icon-button" data-testid="button-open-menu" aria-label="Ouvrir le menu" onClick={() => showToast("Ton espace est déjà prêt.", "info")}><Menu size={20} /></button>
+          <div className="brand-lockup"><span className="brand-mark"><Sparkles size={14} /></span><span>Espace <b>formation</b></span></div>
+          <div className="user-bubble" title={user.email ?? undefined}>{user.photoURL ? <img src={user.photoURL} alt="" /> : <UserRound size={17} />}</div>
+        </header>
+
+        <div className="app-content">
+          {activeNav === "accueil" && (
+            <HomeView user={user} firstName={firstName} progress={progress} modules={visibleModules} onModule={setSelectedModule} onAllModules={() => setActiveNav("formations")} />
           )}
-          {activeNav === 'formations' && (
-            <FormationsView
-              modules={currentModules}
-              onModule={(module) => setSelectedModule(module)}
-              onBack={() => changeNav('accueil')}
-              onToast={showToast}
-            />
-          )}
-          {activeNav === 'recompenses' && (
-            <RewardsView balance={coinBalance} onWithdraw={() => setIsCoinModalOpen(true)} onToast={showToast} />
-          )}
+          {activeNav === "formations" && <FormationsView modules={visibleModules} onModule={setSelectedModule} onBack={() => setActiveNav("accueil")} />}
+          {activeNav === "recompenses" && <RewardsView progress={progress} onToast={showToast} />}
         </div>
-        <BottomNav active={activeNav} onChange={changeNav} />
-        {isDrawerOpen && <MenuDrawer onClose={() => setIsDrawerOpen(false)} onNavigate={changeNav} onToast={showToast} />}
-        {isCoinModalOpen && (
-          <CoinModal
-            balance={coinBalance}
-            onClose={() => setIsCoinModalOpen(false)}
-            onWithdraw={() => {
-              setIsCoinModalOpen(false);
-              showToast('Demande enregistrée. Nous revenons vers toi rapidement.', 'success');
-            }}
-          />
-        )}
-        {selectedModule && <ModuleModal module={selectedModule} onClose={() => setSelectedModule(null)} onComplete={handleComplete} />}
-        {toast && <Toast message={toast.message} kind={toast.kind} onClose={() => setToast(null)} />}
+
+        <nav className="bottom-nav" aria-label="Navigation principale">
+          {([
+            ["accueil", "Accueil", Sparkles],
+            ["formations", "Formations", BookOpen],
+            ["recompenses", "Récompenses", Trophy],
+          ] as const).map(([id, label, Icon]) => (
+            <button type="button" key={id} data-testid={`nav-${id}`} className={activeNav === id ? "active" : ""} onClick={() => setActiveNav(id)}><Icon size={18} /><span>{label}</span></button>
+          ))}
+        </nav>
+
+        <button type="button" className="logout-button" data-testid="button-logout" onClick={handleLogout}><LogOut size={14} /> Se déconnecter</button>
+        {selectedModule && <ModuleModal module={selectedModule} onClose={() => setSelectedModule(null)} onComplete={completeModule} />}
+        {toast && <div className={`toast toast-${toast.kind}`} role="status" data-testid="status-toast"><span>{toast.message}</span><button type="button" aria-label="Fermer le message" data-testid="button-close-toast" onClick={() => setToast(null)}><X size={15} /></button></div>}
       </div>
     </main>
   );
 }
 
-function Header({ balance, onMenu, onCoins }: { balance: number; onMenu: () => void; onCoins: () => void }) {
+function LoginScreen({ onLogin, isSigningIn, hasConfig }: { onLogin: () => void; isSigningIn: boolean; hasConfig: boolean }) {
   return (
-    <header className="flex items-center justify-between px-5 pb-4 pt-6">
-      <button type="button" aria-label="Ouvrir le menu" data-testid="button-open-menu" onClick={onMenu} className="icon-button">
-        <Menu size={21} strokeWidth={2.2} />
-      </button>
-      <div className="brand-lockup">
-        <span className="brand-mark"><Sparkles size={14} /></span>
-        <span>Espace <b>formation</b></span>
-      </div>
-      <button type="button" data-testid="button-open-coins" onClick={onCoins} className="coin-pill">
-        <Coins size={16} />
-        <span data-testid="text-coin-balance">{balance}</span>
-      </button>
-    </header>
-  );
-}
-
-function HomeView({
-  firstName, name, accessState, progress, modules: visibleModules, onNameChange, onAccess, onModule, onAllModules, onCoins,
-}: {
-  firstName: string;
-  name: string;
-  accessState: 'ready' | 'checking' | 'active';
-  progress: number;
-  modules: Module[];
-  onNameChange: (value: string) => void;
-  onAccess: () => void;
-  onModule: (module: Module) => void;
-  onAllModules: () => void;
-  onCoins: () => void;
-}) {
-  return (
-    <div className="space-y-7 px-5">
-      <section className="animate-rise pt-2">
-        <p className="eyebrow">TON ESPACE, TON RYTHME</p>
-        <h1 className="hero-title">Bonjour,<br /><em>{firstName}.</em></h1>
-        <p className="body-copy mt-3 max-w-[320px]">Un petit pas aujourd’hui, une vraie différence demain.</p>
+    <main className="login-shell">
+      <section className="login-card">
+        <div className="login-orbit"><span className="brand-mark"><Sparkles size={21} /></span><span className="orbit-dot" /></div>
+        <p className="eyebrow">ESPACE FORMATION</p>
+        <h1>Apprends. <em>Progresse.</em><br />Construis la suite.</h1>
+        <p className="login-copy">Retrouve tes formations, ton parcours et tes récompenses dans un espace pensé pour avancer à ton rythme.</p>
+        <button type="button" className="google-button" data-testid="button-login-google" onClick={onLogin} disabled={isSigningIn}>
+          <GoogleIcon />
+          <span>{isSigningIn ? "Ouverture de Google..." : "Continuer avec Google"}</span>
+          {!isSigningIn && <ArrowRight size={17} />}
+        </button>
+        {!hasConfig && <p className="config-note"><CircleHelp size={14} /> Configuration Firebase requise pour activer la fenêtre Google.</p>}
+        <div className="login-trust"><ShieldCheck size={15} /><span>Connexion sécurisée avec ton compte Google. Aucun mot de passe à retenir.</span></div>
       </section>
-
-      <AccessCard
-        name={name}
-        state={accessState}
-        onNameChange={onNameChange}
-        onSubmit={onAccess}
-      />
-
-      <section className="animate-rise delay-200">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">TON PARCOURS</p>
-            <h2 className="section-title">Tu avances bien.</h2>
-          </div>
-          <button type="button" data-testid="button-open-rewards" onClick={onCoins} className="progress-orb">
-            <span>{progress}%</span><small>progression</small>
-          </button>
-        </div>
-        <div className="progress-track mt-4"><span style={{ width: `${progress}%` }} /></div>
-        <p className="micro-copy mt-2">{progress > 0 ? 'Continue comme ça, ta régularité paie.' : 'Ton premier chapitre t’attend.'}</p>
-      </section>
-
-      <section className="animate-rise delay-300">
-        <div className="section-heading mb-3">
-          <div>
-            <p className="eyebrow">À DÉCOUVRIR</p>
-            <h2 className="section-title">Formations pratiques</h2>
-          </div>
-          <button type="button" data-testid="button-view-all-formations" onClick={onAllModules} className="text-button">Tout voir <ArrowRight size={14} /></button>
-        </div>
-        <div className="module-scroller scroll-hide">
-          {visibleModules.slice(0, 2).map((module, index) => (
-            <ModuleCard key={module.id} module={module} index={index} onClick={() => onModule(module)} compact />
-          ))}
-        </div>
-      </section>
-
-      <section className="community-card animate-rise delay-400">
-        <div className="community-icon"><MessageCircle size={22} /></div>
-        <div className="min-w-0 flex-1">
-          <p className="eyebrow text-[#9be3cc]">ON APPREND MIEUX ENSEMBLE</p>
-          <h3>Le groupe WhatsApp</h3>
-          <p>Échange, pose tes questions, reste motivé.</p>
-        </div>
-        <SecureJoinButton enabled={accessState === 'active'} />
-      </section>
-    </div>
+      <p className="login-footer">Un petit pas aujourd’hui, une vraie différence demain.</p>
+    </main>
   );
 }
 
-function AccessCard({ name, state, onNameChange, onSubmit }: {
-  name: string;
-  state: 'ready' | 'checking' | 'active';
-  onNameChange: (value: string) => void;
-  onSubmit: () => void;
-}) {
-  const active = state === 'active';
-  return (
-    <section className={`access-card animate-rise ${active ? 'access-active' : ''}`}>
-      <div className="access-decoration"><ShieldCheck size={88} /></div>
-      <div className="relative z-10">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <span className="status-label"><span className={`status-dot ${active ? 'active' : ''}`} /> {active ? 'Accès confirmé' : 'Accès à valider'}</span>
-            <h2 className="access-title">{active ? 'Ton espace est ouvert.' : 'Prêt·e à commencer ?'}</h2>
-            <p className="access-copy">{active ? 'Tu peux maintenant suivre tes formations et gagner des pièces.' : 'Valide ton accès pour rejoindre la communauté.'}</p>
-          </div>
-          <div className="ticket-notch"><span>ESPACE</span><strong>24</strong></div>
-        </div>
-        {!active ? (
-          <div className="mt-5">
-            <label htmlFor="learner-name" className="input-label">Comment dois-je t’appeler ?</label>
-            <div className="name-row">
-              <div className="input-wrap"><UserRound size={16} /><input id="learner-name" data-testid="input-learner-name" value={name} onChange={(event) => onNameChange(event.target.value)} placeholder="Ton prénom et nom" /></div>
-              <button type="button" data-testid="button-submit-access" disabled={state === 'checking'} onClick={onSubmit} className="submit-button">
-                {state === 'checking' ? <span className="button-loading">Vérification...</span> : <><Send size={16} /> Valider</>}
-              </button>
-            </div>
-            <p className="payment-link">Paiement simulé côté serveur pour ouvrir ton accès.</p>
-          </div>
-        ) : (
-          <div className="active-access-row"><div className="check-circle"><Check size={16} /></div><span>Ton accès est valable pendant toute la durée du parcours.</span></div>
-        )}
-      </div>
-    </section>
-  );
+function GoogleIcon() {
+  return <svg aria-hidden="true" className="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.35 12.27c0-.72-.06-1.42-.18-2.09H12v3.96h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.26Z" /><path fill="#34A853" d="M12 21.6c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.6Z" /><path fill="#FBBC05" d="M6.54 13.68a5.86 5.86 0 0 1 0-3.36V7.79H3.3a9.74 9.74 0 0 0 0 8.42l3.24-2.53Z" /><path fill="#EA4335" d="M12 6.29c1.43 0 2.71.49 3.72 1.45l2.79-2.78C16.84 3.32 14.63 2.4 12 2.4a9.74 9.74 0 0 0-8.7 5.39l3.24 2.53C7.31 8.01 9.46 6.29 12 6.29Z" /></svg>;
 }
 
-function SecureJoinButton({ enabled }: { enabled: boolean }) {
-  return <form method="post" action="/api/access/whatsapp" className="secure-join-form"><button type="submit" data-testid="button-join-whatsapp" disabled={!enabled} className="round-arrow light secure-join-button" aria-label="Rejoindre le groupe"><span>Rejoindre le groupe</span><ArrowRight size={17} /></button></form>;
+function HomeView({ user, firstName, progress, modules: visibleModules, onModule, onAllModules }: { user: User; firstName: string; progress: number; modules: Module[]; onModule: (module: Module) => void; onAllModules: () => void }) {
+  return <div className="view-stack">
+    <section className="welcome-block animate-rise"><p className="eyebrow">TON ESPACE, TON RYTHME</p><h1>Bonjour,<br /><em>{firstName}.</em></h1><p>Heureux de te retrouver. Prêt·e à faire avancer ton projet ?</p><span className="email-chip">{user.email}</span></section>
+    <section className="progress-card animate-rise"><div><p className="eyebrow">TON PARCOURS</p><h2>Tu avances bien.</h2><p>Chaque leçon te rapproche de ton prochain objectif.</p></div><strong>{progress}%</strong><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></section>
+    <section className="section-block animate-rise"><div className="section-heading"><div><p className="eyebrow">À DÉCOUVRIR</p><h2>Formations pratiques</h2></div><button type="button" className="text-button" data-testid="button-view-all-formations" onClick={onAllModules}>Tout voir <ArrowRight size={14} /></button></div><div className="module-scroller">{visibleModules.slice(0, 2).map((module) => <ModuleCard key={module.id} module={module} onClick={() => onModule(module)} />)}</div></section>
+    <section className="community-card animate-rise"><span className="community-icon"><MessageCircle size={20} /></span><div><p className="eyebrow">ON APPREND MIEUX ENSEMBLE</p><h3>Le groupe communauté</h3><p>Échange, pose tes questions, reste motivé.</p></div><ArrowRight size={17} /></section>
+  </div>;
 }
 
-function ModuleCard({ module, index, onClick, compact = false }: { module: Module; index: number; onClick: () => void; compact?: boolean }) {
-  const Icon = module.icon;
-  return (
-    <button type="button" data-testid={`card-module-${module.id}`} onClick={onClick} className={`module-card module-${module.color} ${compact ? 'module-compact' : ''}`} style={{ animationDelay: `${index * 80}ms` }}>
-      <div className="module-topline"><span className="module-icon"><Icon size={18} /></span>{module.completed ? <span className="completed-tag"><Check size={11} /> Terminé</span> : <span className="round-arrow"><ArrowUpRightIcon /></span>}</div>
-      <div className="module-content"><p>{module.eyebrow}</p><h3>{module.title}</h3><span className="module-meta"><BookOpen size={12} /> {module.lessons} leçons <i /> <Clock3 size={12} /> {module.duration}</span></div>
-      <div className="card-progress"><span style={{ width: `${module.progress}%` }} /></div>
-      <div className="module-bottom"><span>{module.progress === 0 ? 'À commencer' : `${module.progress}% terminé`}</span><ChevronRight size={16} /></div>
-    </button>
-  );
+function FormationsView({ modules: visibleModules, onModule, onBack }: { modules: Module[]; onModule: (module: Module) => void; onBack: () => void }) {
+  return <div className="view-stack"><div className="page-heading"><button type="button" className="back-button" data-testid="button-back-home" onClick={onBack}><ArrowRight size={17} className="rotate-180" /></button><div><p className="eyebrow">BIBLIOTHÈQUE</p><h1>Toutes les formations</h1></div></div><div className="formation-list">{visibleModules.map((module) => <ModuleCard key={module.id} module={module} onClick={() => onModule(module)} full />)}</div></div>;
 }
 
-function ArrowUpRightIcon() {
-  return <ArrowRight size={17} className="-rotate-45" />;
+function RewardsView({ progress, onToast }: { progress: number; onToast: (message: string, kind?: ToastKind) => void }) {
+  const steps = [
+    { number: "01", Icon: Play, title: "Apprends", copy: "Suis une leçon jusqu’au bout." },
+    { number: "02", Icon: Check, title: "Progresse", copy: "Valide tes étapes." },
+    { number: "03", Icon: Coins, title: "Récolte", copy: "Gagne des pièces." },
+  ];
+  return <div className="view-stack"><div className="page-heading"><div><p className="eyebrow">TON ÉNERGIE</p><h1>Pièces & récompenses</h1></div><span className="reward-icon"><Trophy size={18} /></span></div><section className="reward-card"><Coins size={26} /><p>Progression globale</p><strong>{progress}%</strong><span>Chaque effort compte.</span><button type="button" data-testid="button-reward-info" onClick={() => onToast("Les récompenses arrivent avec tes prochaines leçons.", "info")}>Comment ça marche <ArrowRight size={16} /></button></section><section className="steps-card"><p className="eyebrow">TON RITUEL</p><h2>Apprends avec régularité.</h2>{steps.map(({ number, Icon, title, copy }) => <div className="reward-step" key={number}><span>{number}</span><i><Icon size={15} /></i><div><b>{title}</b><small>{copy}</small></div></div>)}</section></div>;
 }
 
-function FormationsView({ modules: visibleModules, onModule, onBack, onToast }: { modules: Module[]; onModule: (module: Module) => void; onBack: () => void; onToast: (message: string, kind?: ToastKind) => void }) {
-  return (
-    <div className="space-y-6 px-5 pt-3">
-      <div className="page-topline animate-rise"><button type="button" data-testid="button-back-home" onClick={onBack} className="back-button"><ArrowLeft size={17} /></button><div><p className="eyebrow">BIBLIOTHÈQUE</p><h1 className="page-title">Toutes les formations</h1></div><button type="button" data-testid="button-formation-help" onClick={() => onToast('Chaque module est conçu pour avancer à ton rythme.', 'info')} className="icon-button"><CircleHelp size={19} /></button></div>
-      <div className="filter-row animate-rise delay-100"><span className="filter-pill active">Tous <b>{visibleModules.length}</b></span><span className="filter-pill">En cours <b>{visibleModules.filter((module) => module.progress > 0 && module.progress < 100).length}</b></span><span className="filter-pill">Terminés <b>{visibleModules.filter((module) => module.completed).length}</b></span></div>
-      <div className="formation-list">{visibleModules.map((module, index) => <ModuleCard key={module.id} module={module} index={index} onClick={() => onModule(module)} />)}</div>
-      <div className="empty-safe"><Sparkles size={17} /><span>D’autres parcours arrivent bientôt.</span></div>
-    </div>
-  );
-}
-
-function RewardsView({ balance, onWithdraw, onToast }: { balance: number; onWithdraw: () => void; onToast: (message: string, kind?: ToastKind) => void }) {
-  return (
-    <div className="space-y-6 px-5 pt-3">
-      <div className="page-topline animate-rise"><div><p className="eyebrow">TON ÉNERGIE</p><h1 className="page-title">Pièces & récompenses</h1></div><div className="reward-crown"><Trophy size={19} /></div></div>
-      <section className="balance-card animate-rise delay-100"><div className="balance-orbit"><Coins size={33} /></div><p>Solde disponible</p><strong data-testid="text-reward-balance">{balance}</strong><span>pièces d’apprentissage</span><button type="button" data-testid="button-withdraw-coins" onClick={onWithdraw} className="withdraw-button"><WalletCards size={16} /> Retirer mes pièces</button></section>
-      <section className="reward-section animate-rise delay-200"><div className="section-heading"><div><p className="eyebrow">COMMENT ÇA MARCHE</p><h2 className="section-title">Chaque effort compte.</h2></div></div><div className="reward-steps"><RewardStep number="01" icon={Play} title="Apprends" copy="Suis une leçon jusqu’au bout." /><RewardStep number="02" icon={Check} title="Progresse" copy="Valide tes étapes." /><RewardStep number="03" icon={Coins} title="Récolte" copy="Gagne des pièces." /></div></section>
-      <section className="history-card animate-rise delay-300"><div className="flex items-center justify-between"><h3>Activité récente</h3><button type="button" data-testid="button-export-history" onClick={() => onToast('Ton historique est prêt à être partagé.', 'info')}><Download size={16} /></button></div><HistoryRow icon={Check} label="Bienvenue dans Espace formation" detail="Aujourd’hui" amount="+25" /><HistoryRow icon={BookOpen} label="Leçon découverte" detail="Hier" amount="+12" /><HistoryRow icon={Trophy} label="Bonus de régularité" detail="Lundi" amount="+30" /></section>
-    </div>
-  );
-}
-
-function RewardStep({ number, icon: Icon, title, copy }: { number: string; icon: typeof Play; title: string; copy: string }) {
-  return <div className="reward-step"><span className="step-number">{number}</span><span className="step-icon"><Icon size={15} /></span><div><strong>{title}</strong><p>{copy}</p></div></div>;
-}
-
-function HistoryRow({ icon: Icon, label, detail, amount }: { icon: typeof Check; label: string; detail: string; amount: string }) {
-  return <div className="history-row"><span className="history-icon"><Icon size={14} /></span><div><strong>{label}</strong><small>{detail}</small></div><b>{amount}</b></div>;
-}
-
-function BottomNav({ active, onChange }: { active: NavItem; onChange: (item: NavItem) => void }) {
-  return <nav className="bottom-nav" aria-label="Navigation principale">{navItems.map(({ id, label, icon: Icon }) => <button type="button" key={id} data-testid={`nav-${id}`} onClick={() => onChange(id)} className={active === id ? 'active' : ''}><span><Icon size={19} strokeWidth={active === id ? 2.6 : 2} /></span>{label}</button>)}</nav>;
-}
-
-function MenuDrawer({ onClose, onNavigate, onToast }: { onClose: () => void; onNavigate: (item: NavItem) => void; onToast: (message: string, kind?: ToastKind) => void }) {
-  return <div className="drawer-layer"><button type="button" aria-label="Fermer le menu" data-testid="button-close-drawer" onClick={onClose} className="drawer-scrim" /><aside className="drawer-panel animate-slide"><div className="drawer-head"><div className="brand-lockup"><span className="brand-mark"><Sparkles size={14} /></span><span>Espace <b>formation</b></span></div><button type="button" data-testid="button-close-drawer-inner" onClick={onClose} className="icon-button"><X size={19} /></button></div><div className="drawer-welcome"><span className="avatar">A</span><div><p>Ton espace privé</p><strong>On avance ensemble.</strong></div></div><div className="drawer-links"><button type="button" data-testid="drawer-link-home" onClick={() => onNavigate('accueil')}><House size={18} /> Accueil <ChevronRight size={15} /></button><button type="button" data-testid="drawer-link-formations" onClick={() => onNavigate('formations')}><BookOpen size={18} /> Mes formations <ChevronRight size={15} /></button><button type="button" data-testid="drawer-link-rewards" onClick={() => onNavigate('recompenses')}><Trophy size={18} /> Mes récompenses <ChevronRight size={15} /></button></div><div className="drawer-bottom"><button type="button" data-testid="button-help-drawer" onClick={() => onToast('Notre équipe est là pour t’aider.', 'info')}><CircleHelp size={18} /> Besoin d’aide</button><button type="button" data-testid="button-settings-drawer" onClick={() => onToast('Les réglages seront bientôt disponibles.', 'info')}><Settings size={18} /> Réglages</button></div></aside></div>;
-}
-
-function CoinModal({ balance, onClose, onWithdraw }: { balance: number; onClose: () => void; onWithdraw: () => void }) {
-  return <div className="modal-layer"><button type="button" aria-label="Fermer la fenêtre pièces" data-testid="button-close-coins" onClick={onClose} className="modal-scrim" /><section role="dialog" aria-modal="true" aria-labelledby="coin-modal-title" className="modal-card animate-rise"><button type="button" data-testid="button-close-coins-inner" onClick={onClose} className="modal-close"><X size={18} /></button><div className="modal-icon coin-icon"><Coins size={27} /></div><p className="eyebrow">TON PORTEFEUILLE</p><h2 id="coin-modal-title">Tu as <strong>{balance} pièces</strong>.</h2><p className="modal-copy">Les pièces récompensent ta régularité. Dès que tu es prêt·e, transforme-les en un vrai coup de pouce.</p><div className="withdraw-note"><LockKeyhole size={16} /><span>Retrait possible à partir de <b>500 pièces</b>.</span></div><button type="button" data-testid="button-confirm-withdraw" disabled={balance < 500} onClick={onWithdraw} className="primary-full-button">{balance < 500 ? `Encore ${500 - balance} pièces` : 'Demander un retrait'} <ArrowRight size={17} /></button></section></div>;
+function ModuleCard({ module, onClick, full = false }: { module: Module; onClick: () => void; full?: boolean }) {
+  return <button type="button" data-testid={`card-module-${module.id}`} className={`module-card module-${module.tone} ${full ? "module-full" : ""}`} onClick={onClick}><div className="module-topline"><span className="module-number">{module.progress === 100 ? <Check size={15} /> : <BookOpen size={15} />}</span><ChevronRight size={17} /></div><div className="module-content"><p>PARCOURS · {module.lessons} LEÇONS</p><h3>{module.title}</h3><span><Clock3 size={12} /> {module.duration}</span></div><div className="card-progress"><span style={{ width: `${module.progress}%` }} /></div><div className="module-bottom"><span>{module.progress === 0 ? "À commencer" : `${module.progress}% terminé`}</span><ArrowRight size={15} /></div></button>;
 }
 
 function ModuleModal({ module, onClose, onComplete }: { module: Module; onClose: () => void; onComplete: (module: Module) => void }) {
-  const Icon = module.icon;
-  return <div className="modal-layer"><button type="button" aria-label="Fermer le module" data-testid="button-close-module" onClick={onClose} className="modal-scrim" /><section role="dialog" aria-modal="true" aria-labelledby="module-modal-title" className={`modal-card module-modal modal-${module.color} animate-rise`}><button type="button" data-testid="button-close-module-inner" onClick={onClose} className="modal-close"><X size={18} /></button><div className="modal-module-icon"><Icon size={25} /></div><p className="eyebrow">{module.eyebrow}</p><h2 id="module-modal-title">{module.title}</h2><p className="modal-copy">{module.description}</p><div className="lesson-summary"><div><strong>{module.lessons}</strong><span>leçons</span></div><div><strong>{module.duration}</strong><span>à ton rythme</span></div><div><strong>{module.progress}%</strong><span>progression</span></div></div><div className="lesson-bar"><span style={{ width: `${module.progress}%` }} /></div><button type="button" data-testid={`button-start-module-${module.id}`} onClick={() => onComplete(module)} className="primary-full-button">{module.completed ? 'Revoir le module' : module.progress === 0 ? 'Commencer le module' : 'Continuer ma leçon'} <ArrowRight size={17} /></button></section></div>;
-}
-
-function Toast({ message, kind, onClose }: { message: string; kind: ToastKind; onClose: () => void }) {
-  return <div role="status" data-testid="status-toast" className={`toast toast-${kind} animate-toast`}><span className="toast-icon">{kind === 'success' ? <Check size={15} /> : kind === 'warning' ? <CircleHelp size={15} /> : <Sparkles size={15} />}</span><span>{message}</span><button type="button" data-testid="button-close-toast" onClick={onClose} aria-label="Fermer le message"><X size={15} /></button></div>;
+  return <div className="modal-layer"><button type="button" className="modal-scrim" aria-label="Fermer le module" data-testid="button-close-module" onClick={onClose} /><section className={`module-modal module-${module.tone}`} role="dialog" aria-modal="true"><button type="button" className="modal-close" data-testid="button-close-module-inner" onClick={onClose}><X size={17} /></button><p className="eyebrow">FORMATION PRATIQUE</p><h2>{module.title}</h2><p>{module.description}</p><div className="lesson-summary"><span><b>{module.lessons}</b> leçons</span><span><b>{module.duration}</b> à ton rythme</span></div><button type="button" className="primary-button" data-testid={`button-start-module-${module.id}`} onClick={() => onComplete(module)}>{module.progress === 0 ? "Commencer le module" : "Continuer ma leçon"} <ArrowRight size={16} /></button></section></div>;
 }
 
 export default App;
