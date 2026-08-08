@@ -107,6 +107,17 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/access/status', { credentials: 'include' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data: { paid?: boolean } | null) => {
+        if (!cancelled && data?.paid) setAccessState('active');
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
   const firstName = name.trim().split(' ')[0] || 'apprenant·e';
   const currentModules = useMemo(
     () => modules.map((module) => (completedModules.includes(module.id) ? { ...module, progress: 100, completed: true } : module)),
@@ -116,17 +127,28 @@ function App() {
 
   const showToast = (message: string, kind: ToastKind = 'success') => setToast({ message, kind });
 
-  const handleAccess = () => {
+  const handleAccess = async () => {
     if (name.trim().length < 2) {
       showToast('Écris ton prénom pour continuer.', 'warning');
       return;
     }
     setAccessState('checking');
-    window.setTimeout(() => {
+    try {
+      const response = await fetch('/api/access/simulate-payment', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await response.json().catch(() => ({})) as { message?: string; paid?: boolean };
+      if (!response.ok || !data.paid) throw new Error(data.message ?? 'La simulation du paiement a échoué.');
       setAccessState('active');
       setCoinBalance((value) => value + 25);
-      showToast('Accès validé. Bienvenue dans ton espace.', 'success');
-    }, 950);
+      showToast('Paiement simulé confirmé. Ton accès est ouvert.', 'success');
+    } catch (error) {
+      setAccessState('ready');
+      showToast(error instanceof Error ? error.message : 'Impossible de confirmer le paiement.', 'warning');
+    }
   };
 
   const handleComplete = (module: Module) => {
@@ -180,7 +202,6 @@ function App() {
               modules={currentModules}
               onNameChange={setName}
               onAccess={handleAccess}
-              onJoinGroup={() => showToast('Le lien du groupe sera bientôt disponible.', 'info')}
               onModule={(module) => setSelectedModule(module)}
               onAllModules={() => changeNav('formations')}
               onCoins={() => setIsCoinModalOpen(true)}
@@ -236,7 +257,7 @@ function Header({ balance, onMenu, onCoins }: { balance: number; onMenu: () => v
 }
 
 function HomeView({
-  firstName, name, accessState, progress, modules: visibleModules, onNameChange, onAccess, onJoinGroup, onModule, onAllModules, onCoins,
+  firstName, name, accessState, progress, modules: visibleModules, onNameChange, onAccess, onModule, onAllModules, onCoins,
 }: {
   firstName: string;
   name: string;
@@ -245,7 +266,6 @@ function HomeView({
   modules: Module[];
   onNameChange: (value: string) => void;
   onAccess: () => void;
-  onJoinGroup: () => void;
   onModule: (module: Module) => void;
   onAllModules: () => void;
   onCoins: () => void;
@@ -263,7 +283,6 @@ function HomeView({
         state={accessState}
         onNameChange={onNameChange}
         onSubmit={onAccess}
-        onJoinGroup={onJoinGroup}
       />
 
       <section className="animate-rise delay-200">
@@ -302,18 +321,17 @@ function HomeView({
           <h3>Le groupe WhatsApp</h3>
           <p>Échange, pose tes questions, reste motivé.</p>
         </div>
-        <button type="button" data-testid="button-join-whatsapp" onClick={onJoinGroup} className="round-arrow light"><ArrowRight size={17} /></button>
+        <SecureJoinButton enabled={accessState === 'active'} />
       </section>
     </div>
   );
 }
 
-function AccessCard({ name, state, onNameChange, onSubmit, onJoinGroup }: {
+function AccessCard({ name, state, onNameChange, onSubmit }: {
   name: string;
   state: 'ready' | 'checking' | 'active';
   onNameChange: (value: string) => void;
   onSubmit: () => void;
-  onJoinGroup: () => void;
 }) {
   const active = state === 'active';
   return (
@@ -337,14 +355,18 @@ function AccessCard({ name, state, onNameChange, onSubmit, onJoinGroup }: {
                 {state === 'checking' ? <span className="button-loading">Vérification...</span> : <><Send size={16} /> Valider</>}
               </button>
             </div>
-            <button type="button" data-testid="button-payment-whatsapp" onClick={onJoinGroup} className="payment-link">Déjà payé ? Rejoins-nous sur WhatsApp <ArrowRight size={13} /></button>
+            <p className="payment-link">Paiement simulé côté serveur pour ouvrir ton accès.</p>
           </div>
         ) : (
-          <div className="active-access-row"><div className="check-circle"><Check size={16} /></div><span>Ton accès est valable pendant toute la durée du parcours.</span><button type="button" data-testid="button-access-details" onClick={onJoinGroup}><MoreHorizontal size={18} /></button></div>
+          <div className="active-access-row"><div className="check-circle"><Check size={16} /></div><span>Ton accès est valable pendant toute la durée du parcours.</span></div>
         )}
       </div>
     </section>
   );
+}
+
+function SecureJoinButton({ enabled }: { enabled: boolean }) {
+  return <form method="post" action="/api/access/whatsapp" className="secure-join-form"><button type="submit" data-testid="button-join-whatsapp" disabled={!enabled} className="round-arrow light secure-join-button" aria-label="Rejoindre le groupe"><span>Rejoindre le groupe</span><ArrowRight size={17} /></button></form>;
 }
 
 function ModuleCard({ module, index, onClick, compact = false }: { module: Module; index: number; onClick: () => void; compact?: boolean }) {
