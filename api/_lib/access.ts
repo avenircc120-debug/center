@@ -8,7 +8,7 @@ type ResponseLike = { setHeader(name: string, value: string): void };
 type RequestLike = { headers: { cookie?: string } };
 
 function secret() {
-  return process.env.SESSION_SECRET ?? process.env.WHATSAPP_GROUP_INVITE_URL ?? "";
+  return process.env.SESSION_SECRET ?? "";
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {
