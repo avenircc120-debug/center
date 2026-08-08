@@ -1,8 +1,14 @@
 {
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
-      "destination": "/healthz"
+      "destination": "/api/healthz",
+      "permanent": false
+    },
+    {
+      "source": "/healthz",
+      "destination": "/api/healthz",
+      "permanent": false
     }
   ]
 }
