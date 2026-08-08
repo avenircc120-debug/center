@@ -120,6 +120,8 @@ function App() {
           {activeNav === "recompenses" && <RewardsView progress={progress} onToast={showToast} />}
         </div>
 
+        <button type="button" className="logout-button" data-testid="button-logout" onClick={handleLogout}><LogOut size={14} /> Se déconnecter</button>
+
         <nav className="bottom-nav" aria-label="Navigation principale">
           {([
             ["accueil", "Accueil", Sparkles],
@@ -129,8 +131,6 @@ function App() {
             <button type="button" key={id} data-testid={`nav-${id}`} className={activeNav === id ? "active" : ""} onClick={() => setActiveNav(id)}><Icon size={18} /><span>{label}</span></button>
           ))}
         </nav>
-
-        <button type="button" className="logout-button" data-testid="button-logout" onClick={handleLogout}><LogOut size={14} /> Se déconnecter</button>
         {selectedModule && <ModuleModal module={selectedModule} onClose={() => setSelectedModule(null)} onComplete={completeModule} />}
         {toast && <div className={`toast toast-${toast.kind}`} role="status" data-testid="status-toast"><span>{toast.message}</span><button type="button" aria-label="Fermer le message" data-testid="button-close-toast" onClick={() => setToast(null)}><X size={15} /></button></div>}
       </div>
@@ -150,7 +150,7 @@ function HomeView({ user, firstName, progress, modules: visibleModules, onModule
 }
 
 function FormationsView({ modules: visibleModules, onModule, onBack }: { modules: Module[]; onModule: (module: Module) => void; onBack: () => void }) {
-  return <div className="view-stack"><div className="page-heading"><button type="button" className="back-button" data-testid="button-back-home" onClick={onBack}><ArrowRight size={17} className="rotate-180" /></button><div><p className="eyebrow">BIBLIOTHÈQUE</p><h1>Toutes les formations</h1></div></div><div className="formation-list">{visibleModules.map((module) => <ModuleCard key={module.id} module={module} onClick={() => onModule(module)} full />)}</div></div>;
+  return <div className="view-stack formations-view"><div className="page-heading"><button type="button" className="back-button" data-testid="button-back-home" onClick={onBack}><ArrowRight size={17} className="rotate-180" /></button><div><p className="eyebrow">BIBLIOTHÈQUE</p><h1>Toutes les formations</h1></div></div><div className="formation-list">{visibleModules.map((module) => <ModuleCard key={module.id} module={module} onClick={() => onModule(module)} full />)}</div></div>;
 }
 
 function RewardsView({ progress, onToast }: { progress: number; onToast: (message: string, kind?: ToastKind) => void }) {
