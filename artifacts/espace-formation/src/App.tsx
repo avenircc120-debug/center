@@ -28,8 +28,11 @@ interface Module {
   lessons: number;
   duration: string;
   progress: number;
+  reward: number;
   tone: "coral" | "teal" | "violet";
 }
+
+const COINS_STORAGE_KEY = "espace-formation:coins";
 
 const modules: Module[] = [
   {
@@ -39,6 +42,7 @@ const modules: Module[] = [
     lessons: 8,
     duration: "1 h 40",
     progress: 68,
+    reward: 50,
     tone: "coral",
   },
   {
@@ -48,6 +52,7 @@ const modules: Module[] = [
     lessons: 6,
     duration: "1 h 15",
     progress: 24,
+    reward: 75,
     tone: "teal",
   },
   {
@@ -57,6 +62,7 @@ const modules: Module[] = [
     lessons: 10,
     duration: "2 h 20",
     progress: 0,
+    reward: 120,
     tone: "violet",
   },
 ];
@@ -69,6 +75,16 @@ function App() {
   const [completed, setCompleted] = useState<string[]>([]);
   const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [coins, setCoins] = useState(0);
+
+  useEffect(() => {
+    const stored = Number(window.localStorage.getItem(COINS_STORAGE_KEY));
+    if (Number.isFinite(stored) && stored > 0) setCoins(stored);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(COINS_STORAGE_KEY, String(coins));
+  }, [coins]);
 
   useEffect(() => {
     if (!toast) return;
@@ -92,7 +108,8 @@ function App() {
   const completeModule = (module: Module) => {
     if (!completed.includes(module.id)) {
       setCompleted((items) => [...items, module.id]);
-      showToast("Module terminé. Bravo pour ta progression !");
+      setCoins((balance) => balance + module.reward);
+      showToast(`Module terminé. +${module.reward} pièces ajoutées !`);
     } else {
       showToast("Tu peux revoir ce module quand tu veux.", "info");
     }
@@ -110,15 +127,18 @@ function App() {
         <header className="topbar">
           <button type="button" className="icon-button" data-testid="button-open-menu" aria-label="Ouvrir le menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><Menu size={20} /></button>
           <div className="brand-lockup"><span className="brand-mark"><Sparkles size={14} /></span><span>Espace <b>formation</b></span></div>
+          <div className="topbar-right">
+          <span className="coin-chip" data-testid="text-coin-balance" title="Ton solde de pièces"><Coins size={13} /><b>{coins}</b></span>
           <div className="user-bubble" title={user.email ?? undefined}>{user.photoURL ? <img src={user.photoURL} alt="" /> : <UserRound size={17} />}</div>
+          </div>
         </header>
 
         <div className="app-content">
           {activeNav === "accueil" && (
-            <HomeView user={user} firstName={firstName} progress={progress} modules={visibleModules} onModule={setSelectedModule} onAllModules={() => setActiveNav("formations")} />
+            <HomeView user={user} firstName={firstName} progress={progress} coins={coins} modules={visibleModules} onModule={setSelectedModule} onAllModules={() => setActiveNav("formations")} />
           )}
           {activeNav === "formations" && <FormationsView modules={visibleModules} onModule={setSelectedModule} onBack={() => setActiveNav("accueil")} />}
-          {activeNav === "recompenses" && <RewardsView progress={progress} onToast={showToast} />}
+          {activeNav === "recompenses" && <RewardsView progress={progress} coins={coins} onToast={showToast} />}
         </div>
 
         <nav className="bottom-nav" aria-label="Navigation principale">
@@ -164,10 +184,10 @@ function App() {
 
 
 
-function HomeView({ user, firstName, progress, modules: visibleModules, onModule, onAllModules }: { user: AppUser; firstName: string; progress: number; modules: Module[]; onModule: (module: Module) => void; onAllModules: () => void }) {
+function HomeView({ user, firstName, progress, coins, modules: visibleModules, onModule, onAllModules }: { user: AppUser; firstName: string; progress: number; coins: number; modules: Module[]; onModule: (module: Module) => void; onAllModules: () => void }) {
   return <div className="view-stack">
     <section className="welcome-block animate-rise"><p className="eyebrow">TON ESPACE, TON RYTHME</p><h1>Bonjour,<br /><em>{firstName}.</em></h1><p>Heureux de te retrouver. Prêt·e à faire avancer ton projet ?</p><span className="email-chip">{user.email}</span></section>
-    <section className="progress-card animate-rise"><div><p className="eyebrow">TON PARCOURS</p><h2>Tu avances bien.</h2><p>Chaque leçon te rapproche de ton prochain objectif.</p></div><strong>{progress}%</strong><div className="progress-track"><span style={{ width: `${progress}%` }} /></div></section>
+    <section className="progress-card animate-rise"><div><p className="eyebrow">TON PARCOURS</p><h2>Tu avances bien.</h2><p>Chaque leçon te rapproche de ton prochain objectif.</p></div><strong>{progress}%</strong><div className="progress-track"><span style={{ width: `${progress}%` }} /></div><div className="coin-balance-row"><span><Coins size={13} /> Solde</span><b data-testid="text-home-coin-balance">{coins} pièces</b></div></section>
     <section className="section-block animate-rise"><div className="section-heading"><div><p className="eyebrow">À DÉCOUVRIR</p><h2>Formations pratiques</h2></div><button type="button" className="text-button" data-testid="button-view-all-formations" onClick={onAllModules}>Tout voir <ArrowRight size={14} /></button></div><div className="module-scroller">{visibleModules.slice(0, 2).map((module) => <ModuleCard key={module.id} module={module} onClick={() => onModule(module)} />)}</div></section>
     <section className="community-card animate-rise"><span className="community-icon"><MessageCircle size={20} /></span><div><p className="eyebrow">ON APPREND MIEUX ENSEMBLE</p><h3>Le groupe communauté</h3><p>Échange, pose tes questions, reste motivé.</p></div><ArrowRight size={17} /></section>
   </div>;
@@ -177,13 +197,13 @@ function FormationsView({ modules: visibleModules, onModule, onBack }: { modules
   return <div className="view-stack formations-view"><div className="page-heading"><button type="button" className="back-button" data-testid="button-back-home" onClick={onBack}><ArrowRight size={17} className="rotate-180" /></button><div><p className="eyebrow">BIBLIOTHÈQUE</p><h1>Toutes les formations</h1></div></div><div className="formation-list">{visibleModules.map((module) => <ModuleCard key={module.id} module={module} onClick={() => onModule(module)} full />)}</div></div>;
 }
 
-function RewardsView({ progress, onToast }: { progress: number; onToast: (message: string, kind?: ToastKind) => void }) {
+function RewardsView({ progress, coins, onToast }: { progress: number; coins: number; onToast: (message: string, kind?: ToastKind) => void }) {
   const steps = [
     { number: "01", Icon: Play, title: "Apprends", copy: "Suis une leçon jusqu’au bout." },
     { number: "02", Icon: Check, title: "Progresse", copy: "Valide tes étapes." },
     { number: "03", Icon: Coins, title: "Récolte", copy: "Gagne des pièces." },
   ];
-  return <div className="view-stack"><div className="page-heading"><div><p className="eyebrow">TON ÉNERGIE</p><h1>Pièces & récompenses</h1></div><span className="reward-icon"><Trophy size={18} /></span></div><section className="reward-card"><Coins size={26} /><p>Progression globale</p><strong>{progress}%</strong><span>Chaque effort compte.</span><button type="button" data-testid="button-reward-info" onClick={() => onToast("Les récompenses arrivent avec tes prochaines leçons.", "info")}>Comment ça marche <ArrowRight size={16} /></button></section><section className="steps-card"><p className="eyebrow">TON RITUEL</p><h2>Apprends avec régularité.</h2>{steps.map(({ number, Icon, title, copy }) => <div className="reward-step" key={number}><span>{number}</span><i><Icon size={15} /></i><div><b>{title}</b><small>{copy}</small></div></div>)}</section></div>;
+  return <div className="view-stack"><div className="page-heading"><div><p className="eyebrow">TON ÉNERGIE</p><h1>Pièces & récompenses</h1></div><span className="reward-icon"><Trophy size={18} /></span></div><section className="reward-card"><Coins size={26} /><p>Ton solde de pièces</p><strong data-testid="text-reward-coin-balance">{coins}</strong><span>Progression globale : {progress}% · chaque effort compte.</span><button type="button" data-testid="button-reward-info" onClick={() => onToast("Les récompenses arrivent avec tes prochaines leçons.", "info")}>Comment ça marche <ArrowRight size={16} /></button></section><section className="steps-card"><p className="eyebrow">TON RITUEL</p><h2>Apprends avec régularité.</h2>{steps.map(({ number, Icon, title, copy }) => <div className="reward-step" key={number}><span>{number}</span><i><Icon size={15} /></i><div><b>{title}</b><small>{copy}</small></div></div>)}</section></div>;
 }
 
 function ModuleCard({ module, onClick, full = false }: { module: Module; onClick: () => void; full?: boolean }) {
