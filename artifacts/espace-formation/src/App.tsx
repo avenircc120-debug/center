@@ -72,20 +72,11 @@ const modules: Module[] = [
 
 function App() {
   const { user: authUser, loading: authLoading, logout } = useAuth();
-  const metadata = (authUser?.user_metadata ?? {}) as {
-    display_name?: string;
-    first_name?: string;
-    last_name?: string;
-    avatar_url?: string | null;
-  };
   const user: AppUser | null = authUser
     ? {
-        displayName:
-          metadata.display_name?.trim() ||
-          [metadata.first_name, metadata.last_name].filter(Boolean).join(" ").trim() ||
-          "Apprenant\u00b7e",
+        displayName: authUser.displayName?.trim() || "Apprenant\u00b7e",
         email: authUser.email ?? "",
-        photoURL: metadata.avatar_url ?? null,
+        photoURL: authUser.photoURL ?? null,
       }
     : null;
   const [activeNav, setActiveNav] = useState<NavItem>("accueil");
@@ -117,20 +108,17 @@ function App() {
   const progress = Math.round(visibleModules.reduce((total, module) => total + module.progress, 0) / visibleModules.length);
   const firstName = user?.displayName?.split(" ")[0] || "apprenant·e";
 
-  // Supabase est aussi la base de données : le profil est synchronisé après connexion.
+  // Supabase = base de donnees : le profil est synchronise apres la connexion Firebase.
   useEffect(() => {
     if (!authUser) return;
     void supabase
       .from("profiles")
       .upsert(
         {
-          id: authUser.id,
+          id: authUser.uid,
           email: authUser.email,
-          display_name:
-            metadata.display_name ??
-            [metadata.first_name, metadata.last_name].filter(Boolean).join(" ").trim() ??
-            null,
-          avatar_url: metadata.avatar_url ?? null,
+          display_name: authUser.displayName ?? null,
+          avatar_url: authUser.photoURL ?? null,
         },
         { onConflict: "id" },
       )
@@ -138,7 +126,7 @@ function App() {
         if (error) console.warn("Supabase profile sync:", error.message);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser?.id]);
+  }, [authUser?.uid]);
 
   const showToast = (message: string, kind: ToastKind = "success") => setToast({ message, kind });
 

@@ -1,31 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 
-import { supabase } from "@/lib/supabase";
+import { auth } from "@/lib/firebase";
 
 export function useAuth() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
       setLoading(false);
     });
-
-    void supabase.auth.getSession().then(({ data: { session: current } }) => {
-      setSession(current);
-      setLoading(false);
-    });
-
-    return () => data.subscription.unsubscribe();
+    return unsubscribe;
   }, []);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
+    await signOut(auth);
   }, []);
 
-  const user: User | null = session?.user ?? null;
-
-  return { user, session, loading, logout };
+  return { user, loading, logout };
 }

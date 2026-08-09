@@ -9,15 +9,13 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5a3J5b2t2eXJiZHpuYmR4eGpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMjg2MDUsImV4cCI6MjEwMTcwNDYwNX0.2dlNDYxBcR9HYoBpNGbnnrdXIyd1qkH6ZE1M9S8OUIE";
 
 /**
- * Supabase gere a la fois la base de donnees et l'authentification.
- * Auth par e-mail : code de confirmation (OTP) a l'inscription et pour
- * la reinitialisation du mot de passe, puis e-mail + mot de passe au quotidien.
+ * Supabase = base de donnees uniquement (profils et donnees de l'app).
+ * Aucune authentification Supabase : la connexion passe par Firebase.
  */
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
+    persistSession: false,
+    autoRefreshToken: false,
     detectSessionInUrl: false,
-    storageKey: "espace-formation-auth",
   },
 });
