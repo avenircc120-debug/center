@@ -11,7 +11,7 @@ import {
 import { auth } from "@/lib/firebase";
 
 type Step = "signin" | "signup" | "confirm" | "reset";
-type ConfirmationStart = { code?: string; message?: string };
+type ConfirmationStart = { resendToken?: string; message?: string };
 type ConfirmationResult = { confirmed?: boolean; message?: string };
 
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api`;
@@ -42,17 +42,20 @@ function messageFrom(error: unknown) {
   return readableError(err?.code ?? "", err?.message ?? "Une erreur est survenue.");
 }
 
-async function startConfirmation(email: string) {
+async function startConfirmation(email: string, idToken?: string, resendToken?: string) {
   const response = await fetch(`${API_BASE}/auth/confirmation/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
+    headers: {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    },
+    body: JSON.stringify({ email, ...(resendToken ? { resendToken } : {}) }),
   });
   const body = (await response.json()) as ConfirmationStart;
-  if (!response.ok || !body.code) {
-    throw new Error(body.message ?? "Impossible de generer le code de confirmation.");
+  if (!response.ok || (!body.resendToken && !resendToken)) {
+    throw new Error(body.message ?? "Impossible d'envoyer le code de confirmation.");
   }
-  return body.code;
+  return body.resendToken ?? resendToken;
 }
 
 async function verifyConfirmation(email: string, code: string) {
@@ -74,7 +77,7 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [confirmationCode, setConfirmationCode] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
+  const [resendToken, setResendToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,13 +113,14 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
       const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
       const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
       if (displayName) await updateProfile(credential.user, { displayName });
-      const code = await startConfirmation(normalizedEmail);
+      const idToken = await credential.user.getIdToken();
+      const nextResendToken = await startConfirmation(normalizedEmail, idToken);
       setEmail(normalizedEmail);
-      setGeneratedCode(code);
+      setResendToken(nextResendToken ?? "");
       setConfirmationCode("");
       await signOut(auth);
       setStep("confirm");
-      onNotify("Ton code de confirmation est pret.", "info");
+      onNotify("Un code de confirmation a ete envoye par e-mail.", "info");
     } catch (err) {
       setError(err instanceof Error && !("code" in err) ? err.message : messageFrom(err));
     } finally {
@@ -147,10 +151,9 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
     setError(null);
     setBusy(true);
     try {
-      const code = await startConfirmation(email.trim());
-      setGeneratedCode(code);
+      await startConfirmation(email.trim(), undefined, resendToken);
       setConfirmationCode("");
-      onNotify("Un nouveau code a ete genere.", "info");
+      onNotify("Un nouveau code a ete envoye par e-mail.", "info");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de generer un nouveau code.");
     } finally {
@@ -255,12 +258,8 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
 
       {step === "confirm" && (
         <form className="auth-form" onSubmit={confirmEmail}>
-          <p className="login-lead">Confirme ton compte avec le code a 6 chiffres genere pour {email}.</p>
-          <div className="auth-code-preview" data-testid="confirmation-code" aria-label="Code de confirmation">
-            <CheckCircle2 size={16} />
-            <strong>{generatedCode}</strong>
-          </div>
-          <p className="auth-hint">Sans service e-mail externe, le code est affiche ici pendant 10 minutes.</p>
+          <p className="login-lead">Entre le code a 6 chiffres envoye a {email} pour activer ton compte.</p>
+          <p className="auth-hint">Le code est valable pendant 10 minutes. Pense a verifier les courriers indesirables.</p>
           <label className="auth-field">
             <span>Code de confirmation</span>
             <input
