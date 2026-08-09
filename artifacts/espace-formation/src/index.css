@@ -392,9 +392,17 @@ html, body, #root { height: 100%; max-height: 100%; overflow: hidden; overscroll
   transition: border-color .16s ease, box-shadow .16s ease;
 }
 .auth-field input:focus { border-color: hsl(var(--primary) / .6); box-shadow: 0 0 0 3px hsl(var(--primary) / .12); }
-.auth-code-input { text-align: center; letter-spacing: 0.6em; font-size: 1.3rem !important; font-weight: 700; padding-left: 0.6em !important; }
-.auth-code-preview { display: flex; align-items: center; justify-content: center; gap: 0.55rem; padding: 0.85rem 1rem; border: 1px dashed hsl(var(--primary) / .45); border-radius: 0.9rem; background: hsl(var(--primary) / .07); color: hsl(var(--primary)); }
-.auth-code-preview strong { font: 700 1.35rem var(--font-mono); letter-spacing: 0.18em; }
+.auth-google {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.55rem;
+  width: 100%; padding: 0.8rem 1rem; border-radius: 999px;
+  border: 1px solid hsl(var(--border)); background: hsl(var(--card));
+  color: hsl(var(--foreground)); font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.auth-google:hover:not(:disabled) { transform: translateY(-1px); border-color: hsl(var(--primary) / .5); box-shadow: 0 10px 22px hsl(var(--ink) / .1); }
+.auth-google:disabled { opacity: .65; cursor: progress; }
+.auth-separator { display: flex; align-items: center; gap: 0.6rem; color: hsl(var(--muted-foreground)); font-size: 0.72rem; text-transform: uppercase; letter-spacing: .12em; }
+.auth-separator::before, .auth-separator::after { content: ""; flex: 1; height: 1px; background: hsl(var(--border)); }
 .auth-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   width: 100%; padding: 0.85rem 1rem; border: 0; border-radius: 999px;

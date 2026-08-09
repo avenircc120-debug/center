@@ -1,20 +1,20 @@
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import {
+  GoogleAuthProvider,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  signOut,
+  signInWithPopup,
   updateProfile,
 } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
 
-type Step = "signin" | "signup" | "confirm" | "reset";
-type ConfirmationStart = { code?: string; message?: string };
-type ConfirmationResult = { confirmed?: boolean; message?: string };
+type Step = "signin" | "signup" | "reset";
 
-const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api`;
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 function readableError(code: string, fallback: string) {
   switch (code) {
@@ -32,6 +32,15 @@ function readableError(code: string, fallback: string) {
       return "Trop de tentatives. Reessaie dans une minute.";
     case "auth/network-request-failed":
       return "Connexion impossible. Verifie ton reseau.";
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Connexion Google annulee.";
+    case "auth/popup-blocked":
+      return "La fenetre Google a ete bloquee par le navigateur.";
+    case "auth/account-exists-with-different-credential":
+      return "Un compte existe deja avec cet e-mail via une autre methode.";
+    case "auth/unauthorized-domain":
+      return "Ce domaine n'est pas autorise dans la console Firebase.";
     default:
       return fallback;
   }
@@ -42,29 +51,15 @@ function messageFrom(error: unknown) {
   return readableError(err?.code ?? "", err?.message ?? "Une erreur est survenue.");
 }
 
-async function startConfirmation(email: string) {
-  const response = await fetch(`${API_BASE}/auth/confirmation/start`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  const body = (await response.json()) as ConfirmationStart;
-  if (!response.ok || !body.code) {
-    throw new Error(body.message ?? "Impossible de generer le code de confirmation.");
-  }
-  return body.code;
-}
-
-async function verifyConfirmation(email: string, code: string) {
-  const response = await fetch(`${API_BASE}/auth/confirmation/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, code }),
-  });
-  const body = (await response.json()) as ConfirmationResult;
-  if (!response.ok || !body.confirmed) {
-    throw new Error(body.message ?? "Code de confirmation invalide.");
-  }
+function GoogleIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2.5 24 .5 14.6.5 6.5 5.9 2.6 13.7l7.8 6.1C12.3 13.6 17.6 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.9 7.2l7.6 5.9c4.4-4.1 7.1-10.2 7.1-17.6z" />
+      <path fill="#FBBC05" d="M10.4 28.4a14.5 14.5 0 0 1 0-8.6l-7.8-6.1a23.5 23.5 0 0 0 0 20.8l7.8-6.1z" />
+      <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.4-5.5l-7.6-5.9c-2.1 1.4-4.8 2.3-7.8 2.3-6.4 0-11.7-4.1-13.6-9.9l-7.8 6.1C6.5 42.1 14.6 47.5 24 47.5z" />
+    </svg>
+  );
 }
 
 export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "success" | "warning" | "info") => void }) {
@@ -73,8 +68,6 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [confirmationCode, setConfirmationCode] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +75,36 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
     setError(null);
     setStep(next);
   };
+
+  // Firebase gere seul la creation du compte, la session et la persistance.
+  const signInWithGoogle = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const credential = await signInWithPopup(auth, googleProvider);
+      onNotify(`Bienvenue ${credential.user.displayName ?? ""}`.trim() + " !");
+    } catch (err) {
+      setError(messageFrom(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const googleButton = (testId: string) => (
+    <>
+      <button
+        type="button"
+        className="auth-google"
+        onClick={signInWithGoogle}
+        disabled={busy}
+        data-testid={testId}
+      >
+        {busy ? <Loader2 className="auth-spin" size={16} /> : <GoogleIcon />}
+        <span>Se connecter avec Google</span>
+      </button>
+      <div className="auth-separator"><span>ou</span></div>
+    </>
+  );
 
   const signIn = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -110,49 +133,9 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
       const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
       const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
       if (displayName) await updateProfile(credential.user, { displayName });
-      const code = await startConfirmation(normalizedEmail);
-      setEmail(normalizedEmail);
-      setGeneratedCode(code);
-      setConfirmationCode("");
-      await signOut(auth);
-      setStep("confirm");
-      onNotify("Ton code de confirmation est pret.", "info");
+      onNotify("Compte cree. Bienvenue !");
     } catch (err) {
-      setError(err instanceof Error && !("code" in err) ? err.message : messageFrom(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const confirmEmail = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!/^\d{6}$/.test(confirmationCode)) {
-      setError("Entre le code a 6 chiffres affiche dans l'application.");
-      return;
-    }
-    setError(null);
-    setBusy(true);
-    try {
-      await verifyConfirmation(email.trim(), confirmationCode);
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      onNotify("Compte confirme. Bienvenue !");
-    } catch (err) {
-      setError(err instanceof Error && !("code" in err) ? err.message : messageFrom(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const resendConfirmation = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const code = await startConfirmation(email.trim());
-      setGeneratedCode(code);
-      setConfirmationCode("");
-      onNotify("Un nouveau code a ete genere.", "info");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de generer un nouveau code.");
+      setError(messageFrom(err));
     } finally {
       setBusy(false);
     }
@@ -199,7 +182,8 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
 
       {step === "signin" && (
         <form className="auth-form" onSubmit={signIn}>
-          <p className="login-lead">Connecte-toi avec ton e-mail et ton mot de passe.</p>
+          <p className="login-lead">Connecte-toi avec Google ou avec ton e-mail.</p>
+          {googleButton("button-google-sign-in")}
           {emailField("input-email")}
           <label className="auth-field">
             <span>Mot de passe</span>
@@ -219,7 +203,8 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
 
       {step === "signup" && (
         <form className="auth-form" onSubmit={signUp}>
-          <p className="login-lead">Cree ton compte avec ton e-mail et un mot de passe.</p>
+          <p className="login-lead">Cree ton compte avec Google ou avec un e-mail.</p>
+          {googleButton("button-google-sign-up")}
           <label className="auth-field">
             <span>Nom</span>
             <input type="text" autoComplete="family-name" value={lastName} onChange={(event) => setLastName(event.target.value)} data-testid="input-last-name" required />
@@ -249,43 +234,6 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
           </button>
           <div className="auth-links">
             <button type="button" onClick={() => goTo("signin")}><ArrowLeft size={13} /> Retour</button>
-          </div>
-        </form>
-      )}
-
-      {step === "confirm" && (
-        <form className="auth-form" onSubmit={confirmEmail}>
-          <p className="login-lead">Confirme ton compte avec le code a 6 chiffres genere pour {email}.</p>
-          <div className="auth-code-preview" data-testid="confirmation-code" aria-label="Code de confirmation">
-            <CheckCircle2 size={16} />
-            <strong>{generatedCode}</strong>
-          </div>
-          <p className="auth-hint">Sans service e-mail externe, le code est affiche ici pendant 10 minutes.</p>
-          <label className="auth-field">
-            <span>Code de confirmation</span>
-            <input
-              className="auth-code-input"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              placeholder="000000"
-              value={confirmationCode}
-              onChange={(event) => setConfirmationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-              data-testid="input-confirmation-code"
-              autoFocus
-              required
-            />
-          </label>
-          {error && <p className="auth-error" role="alert">{error}</p>}
-          <button type="submit" className="auth-primary" disabled={busy} data-testid="button-confirm-account">
-            {busy ? <Loader2 className="auth-spin" size={16} /> : <CheckCircle2 size={16} />}
-            <span>{busy ? "Verification..." : "Valider mon compte"}</span>
-          </button>
-          <div className="auth-links">
-            <button type="button" onClick={resendConfirmation} disabled={busy}><Mail size={13} /> Nouveau code</button>
-            <button type="button" onClick={() => goTo("signup")}><ArrowLeft size={13} /> Modifier</button>
           </div>
         </form>
       )}
