@@ -393,6 +393,8 @@ html, body, #root { height: 100%; max-height: 100%; overflow: hidden; overscroll
 }
 .auth-field input:focus { border-color: hsl(var(--primary) / .6); box-shadow: 0 0 0 3px hsl(var(--primary) / .12); }
 .auth-code-input { text-align: center; letter-spacing: 0.6em; font-size: 1.3rem !important; font-weight: 700; padding-left: 0.6em !important; }
+.auth-code-preview { display: flex; align-items: center; justify-content: center; gap: 0.55rem; padding: 0.85rem 1rem; border: 1px dashed hsl(var(--primary) / .45); border-radius: 0.9rem; background: hsl(var(--primary) / .07); color: hsl(var(--primary)); }
+.auth-code-preview strong { font: 700 1.35rem var(--font-mono); letter-spacing: 0.18em; }
 .auth-primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
   width: 100%; padding: 0.85rem 1rem; border: 0; border-radius: 999px;

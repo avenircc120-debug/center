@@ -1,15 +1,20 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signOut,
   updateProfile,
 } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
 
-type Step = "signin" | "signup" | "reset";
+type Step = "signin" | "signup" | "confirm" | "reset";
+type ConfirmationStart = { code?: string; message?: string };
+type ConfirmationResult = { confirmed?: boolean; message?: string };
+
+const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api`;
 
 function readableError(code: string, fallback: string) {
   switch (code) {
@@ -22,7 +27,7 @@ function readableError(code: string, fallback: string) {
     case "auth/email-already-in-use":
       return "Un compte existe deja avec cet e-mail.";
     case "auth/weak-password":
-      return "Le mot de passe doit contenir au moins 6 caracteres.";
+      return "Le mot de passe doit contenir au moins 8 caracteres.";
     case "auth/too-many-requests":
       return "Trop de tentatives. Reessaie dans une minute.";
     case "auth/network-request-failed":
@@ -37,12 +42,39 @@ function messageFrom(error: unknown) {
   return readableError(err?.code ?? "", err?.message ?? "Une erreur est survenue.");
 }
 
+async function startConfirmation(email: string) {
+  const response = await fetch(`${API_BASE}/auth/confirmation/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const body = (await response.json()) as ConfirmationStart;
+  if (!response.ok || !body.code) {
+    throw new Error(body.message ?? "Impossible de generer le code de confirmation.");
+  }
+  return body.code;
+}
+
+async function verifyConfirmation(email: string, code: string) {
+  const response = await fetch(`${API_BASE}/auth/confirmation/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  const body = (await response.json()) as ConfirmationResult;
+  if (!response.ok || !body.confirmed) {
+    throw new Error(body.message ?? "Code de confirmation invalide.");
+  }
+}
+
 export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "success" | "warning" | "info") => void }) {
   const [step, setStep] = useState<Step>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [confirmationCode, setConfirmationCode] = useState("");
+  const [generatedCode, setGeneratedCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,19 +99,60 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
 
   const signUp = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caracteres.");
+    if (password.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caracteres.");
       return;
     }
     setError(null);
     setBusy(true);
     try {
-      const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const normalizedEmail = email.trim().toLowerCase();
+      const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
       const displayName = `${firstName.trim()} ${lastName.trim()}`.trim();
       if (displayName) await updateProfile(credential.user, { displayName });
-      onNotify("Compte cree. Bienvenue !");
+      const code = await startConfirmation(normalizedEmail);
+      setEmail(normalizedEmail);
+      setGeneratedCode(code);
+      setConfirmationCode("");
+      await signOut(auth);
+      setStep("confirm");
+      onNotify("Ton code de confirmation est pret.", "info");
     } catch (err) {
-      setError(messageFrom(err));
+      setError(err instanceof Error && !("code" in err) ? err.message : messageFrom(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!/^\d{6}$/.test(confirmationCode)) {
+      setError("Entre le code a 6 chiffres affiche dans l'application.");
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await verifyConfirmation(email.trim(), confirmationCode);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      onNotify("Compte confirme. Bienvenue !");
+    } catch (err) {
+      setError(err instanceof Error && !("code" in err) ? err.message : messageFrom(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendConfirmation = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      const code = await startConfirmation(email.trim());
+      setGeneratedCode(code);
+      setConfirmationCode("");
+      onNotify("Un nouveau code a ete genere.", "info");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de generer un nouveau code.");
     } finally {
       setBusy(false);
     }
@@ -130,29 +203,16 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
           {emailField("input-email")}
           <label className="auth-field">
             <span>Mot de passe</span>
-            <input
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              data-testid="input-password"
-              required
-            />
+            <input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} data-testid="input-password" required />
           </label>
           {error && <p className="auth-error" role="alert">{error}</p>}
-          <button type="submit" className="auth-primary" disabled={busy} data-testid="button-signin">
+          <button type="submit" className="auth-primary" disabled={busy} data-testid="button-sign-in">
             {busy ? <Loader2 className="auth-spin" size={16} /> : null}
             <span>{busy ? "Connexion..." : "Se connecter"}</span>
           </button>
           <div className="auth-links">
-            <button type="button" onClick={() => goTo("signup")} data-testid="button-goto-signup">
-              Creer un compte
-            </button>
-            <button type="button" onClick={() => goTo("reset")} data-testid="button-forgot-password">
-              Mot de passe oublie ?
-            </button>
+            <button type="button" onClick={() => goTo("signup")}>Creer un compte</button>
+            <button type="button" onClick={() => goTo("reset")}>Mot de passe oublie ?</button>
           </div>
         </form>
       )}
@@ -174,12 +234,12 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
             <input
               type="password"
               autoComplete="new-password"
-              placeholder="6 caracteres minimum"
+              placeholder="8 caracteres minimum"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               data-testid="input-new-password"
               required
-              minLength={6}
+              minLength={8}
             />
           </label>
           {error && <p className="auth-error" role="alert">{error}</p>}
@@ -189,6 +249,43 @@ export function AuthView({ onNotify }: { onNotify: (message: string, kind?: "suc
           </button>
           <div className="auth-links">
             <button type="button" onClick={() => goTo("signin")}><ArrowLeft size={13} /> Retour</button>
+          </div>
+        </form>
+      )}
+
+      {step === "confirm" && (
+        <form className="auth-form" onSubmit={confirmEmail}>
+          <p className="login-lead">Confirme ton compte avec le code a 6 chiffres genere pour {email}.</p>
+          <div className="auth-code-preview" data-testid="confirmation-code" aria-label="Code de confirmation">
+            <CheckCircle2 size={16} />
+            <strong>{generatedCode}</strong>
+          </div>
+          <p className="auth-hint">Sans service e-mail externe, le code est affiche ici pendant 10 minutes.</p>
+          <label className="auth-field">
+            <span>Code de confirmation</span>
+            <input
+              className="auth-code-input"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              placeholder="000000"
+              value={confirmationCode}
+              onChange={(event) => setConfirmationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              data-testid="input-confirmation-code"
+              autoFocus
+              required
+            />
+          </label>
+          {error && <p className="auth-error" role="alert">{error}</p>}
+          <button type="submit" className="auth-primary" disabled={busy} data-testid="button-confirm-account">
+            {busy ? <Loader2 className="auth-spin" size={16} /> : <CheckCircle2 size={16} />}
+            <span>{busy ? "Verification..." : "Valider mon compte"}</span>
+          </button>
+          <div className="auth-links">
+            <button type="button" onClick={resendConfirmation} disabled={busy}><Mail size={13} /> Nouveau code</button>
+            <button type="button" onClick={() => goTo("signup")}><ArrowLeft size={13} /> Modifier</button>
           </div>
         </form>
       )}
