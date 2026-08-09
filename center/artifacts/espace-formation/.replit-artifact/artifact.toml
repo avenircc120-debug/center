@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Espace de Formation"
+description = "Une application mobile-first de formation permettant de valider un ticket d'accès, consulter des modules, rejoindre un groupe WhatsApp et gérer ses coins de récompense."
+version = "1.0.0"
+id = "artifacts/espace-formation"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25155
+
+[services.development]
+run = "pnpm --filter @workspace/espace-formation run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/espace-formation", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/espace-formation/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25155"
+BASE_PATH = "/"

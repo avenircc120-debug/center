@@ -1,0 +1,14 @@
+{
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/api/healthz",
+      "permanent": false
+    },
+    {
+      "source": "/healthz",
+      "destination": "/api/healthz",
+      "permanent": false
+    }
+  ]
+}
