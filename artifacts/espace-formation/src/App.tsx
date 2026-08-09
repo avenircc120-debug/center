@@ -10,14 +10,14 @@ import {
   Menu,
   MessageCircle,
   Play,
-  ShieldCheck,
   Sparkles,
   Trophy,
   UserRound,
   X,
 } from "lucide-react";
 
-import { useFirebaseAuth } from "@/hooks/use-firebase-auth";
+import { AuthView } from "@/components/auth-view";
+import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase";
 
 type ToastKind = "success" | "warning" | "info";
@@ -71,12 +71,21 @@ const modules: Module[] = [
 ];
 
 function App() {
-  const { user: firebaseUser, loading: authLoading, signInWithGoogle, logout } = useFirebaseAuth();
-  const user: AppUser | null = firebaseUser
+  const { user: authUser, loading: authLoading, logout } = useAuth();
+  const metadata = (authUser?.user_metadata ?? {}) as {
+    display_name?: string;
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string | null;
+  };
+  const user: AppUser | null = authUser
     ? {
-        displayName: firebaseUser.displayName ?? "Apprenant·e",
-        email: firebaseUser.email ?? "",
-        photoURL: firebaseUser.photoURL,
+        displayName:
+          metadata.display_name?.trim() ||
+          [metadata.first_name, metadata.last_name].filter(Boolean).join(" ").trim() ||
+          "Apprenant\u00b7e",
+        email: authUser.email ?? "",
+        photoURL: metadata.avatar_url ?? null,
       }
     : null;
   const [activeNav, setActiveNav] = useState<NavItem>("accueil");
@@ -85,7 +94,6 @@ function App() {
   const [toast, setToast] = useState<{ message: string; kind: ToastKind } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [coins, setCoins] = useState(0);
-  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     const stored = Number(window.localStorage.getItem(COINS_STORAGE_KEY));
@@ -109,24 +117,28 @@ function App() {
   const progress = Math.round(visibleModules.reduce((total, module) => total + module.progress, 0) / visibleModules.length);
   const firstName = user?.displayName?.split(" ")[0] || "apprenant·e";
 
-  // Supabase reste la base de données : le profil est synchronisé après connexion Google.
+  // Supabase est aussi la base de données : le profil est synchronisé après connexion.
   useEffect(() => {
-    if (!firebaseUser) return;
+    if (!authUser) return;
     void supabase
       .from("profiles")
       .upsert(
         {
-          id: firebaseUser.uid,
-          email: firebaseUser.email,
-          display_name: firebaseUser.displayName,
-          avatar_url: firebaseUser.photoURL,
+          id: authUser.id,
+          email: authUser.email,
+          display_name:
+            metadata.display_name ??
+            [metadata.first_name, metadata.last_name].filter(Boolean).join(" ").trim() ??
+            null,
+          avatar_url: metadata.avatar_url ?? null,
         },
         { onConflict: "id" },
       )
       .then(({ error }) => {
         if (error) console.warn("Supabase profile sync:", error.message);
       });
-  }, [firebaseUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser?.id]);
 
   const showToast = (message: string, kind: ToastKind = "success") => setToast({ message, kind });
 
@@ -137,17 +149,6 @@ function App() {
       showToast("Tu es déconnecté·e.", "info");
     } catch {
       showToast("Déconnexion impossible pour le moment.", "warning");
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setSigningIn(true);
-      await signInWithGoogle();
-    } catch {
-      showToast("Connexion Google impossible. Réessaie.", "warning");
-    } finally {
-      setSigningIn(false);
     }
   };
 
@@ -170,17 +171,7 @@ function App() {
     return (
       <main className="app-shell">
         <div className="phone-frame login-frame">
-          <div className="login-view">
-            <span className="brand-mark login-mark"><Sparkles size={18} /></span>
-            <p className="eyebrow">BIENVENUE</p>
-            <h1>Espace <em>formation</em></h1>
-            <p className="login-lead">Connecte-toi avec Google pour retrouver tes formations, ta progression et tes pièces.</p>
-            <button type="button" className="google-button" data-testid="button-google-signin" disabled={signingIn} onClick={handleGoogleSignIn}>
-              <GoogleMark />
-              <span>{signingIn ? "Connexion..." : "Continuer avec Google"}</span>
-            </button>
-            <p className="login-note"><ShieldCheck size={13} /> Connexion sécurisée. Aucun mot de passe à retenir.</p>
-          </div>
+          <AuthView onNotify={showToast} />
           {toast && <div className={`toast toast-${toast.kind}`} role="status" data-testid="status-toast"><span>{toast.message}</span><button type="button" aria-label="Fermer le message" onClick={() => setToast(null)}><X size={15} /></button></div>}
         </div>
       </main>
@@ -250,17 +241,6 @@ function App() {
 }
 
 
-
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-      <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.4a5.5 5.5 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.6-5.2 3.6-8.8z" />
-      <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2a7 7 0 0 1-6.5-4.8H1.5v3.1A12 12 0 0 0 12 24z" />
-      <path fill="#FBBC05" d="M5.5 14.5a7.2 7.2 0 0 1 0-4.6V6.8H1.5a12 12 0 0 0 0 10.4l4-2.7z" />
-      <path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A11.6 11.6 0 0 0 12 0 12 12 0 0 0 1.5 6.8l4 3.1A7 7 0 0 1 12 4.8z" />
-    </svg>
-  );
-}
 
 function HomeView({ user, firstName, progress, coins, modules: visibleModules, onModule, onAllModules }: { user: AppUser; firstName: string; progress: number; coins: number; modules: Module[]; onModule: (module: Module) => void; onAllModules: () => void }) {
   return <div className="view-stack">

@@ -300,7 +300,7 @@ html, body, #root { height: 100%; max-height: 100%; overflow: hidden; overscroll
 .coin-balance-row b { font-size: 12px; font-weight: 800; }
 
 
-/* ---------- Connexion Google (Firebase) ---------- */
+/* ---------- Connexion par e-mail (Supabase) ---------- */
 .login-frame {
   justify-content: center;
 }
@@ -374,3 +374,44 @@ html, body, #root { height: 100%; max-height: 100%; overflow: hidden; overscroll
   font-size: clamp(0.68rem, 1.6vh, 0.78rem);
   color: var(--muted-foreground, #6b7280);
 }
+
+/* ---------- Formulaire d'authentification e-mail ---------- */
+.auth-view { gap: clamp(0.35rem, 1vh, 0.7rem); overflow-y: auto; }
+.auth-form { display: flex; flex-direction: column; gap: clamp(0.5rem, 1.4vh, 0.85rem); width: 100%; margin-top: clamp(0.3rem, 1vh, 0.7rem); }
+.auth-field { display: flex; flex-direction: column; gap: 0.3rem; width: 100%; }
+.auth-field > span { color: hsl(var(--muted-foreground)); font: 500 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.auth-field input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.auth-field input:focus { border-color: hsl(var(--primary) / .6); box-shadow: 0 0 0 3px hsl(var(--primary) / .12); }
+.auth-code-input { text-align: center; letter-spacing: 0.6em; font-size: 1.3rem !important; font-weight: 700; padding-left: 0.6em !important; }
+.auth-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  width: 100%; padding: 0.85rem 1rem; border: 0; border-radius: 999px;
+  background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+  font-size: 0.92rem; font-weight: 700; cursor: pointer;
+  box-shadow: 0 10px 24px hsl(var(--ink) / .12);
+  transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+}
+.auth-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 28px hsl(var(--ink) / .16); }
+.auth-primary:disabled { opacity: .7; cursor: progress; }
+.auth-links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; }
+.auth-links button {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  border: 0; background: transparent; padding: 0;
+  color: hsl(var(--muted-foreground)); font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.auth-links button:hover:not(:disabled) { color: hsl(var(--primary)); }
+.auth-links button:disabled { opacity: .55; cursor: not-allowed; }
+.auth-error { margin: 0; color: hsl(var(--primary)); font-size: 0.78rem; line-height: 1.4; }
+.auth-hint { display: flex; align-items: center; gap: 0.35rem; margin: 0; color: hsl(var(--muted-foreground)); font-size: 0.78rem; }
+.auth-spin { animation: auth-spin 1s linear infinite; }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
